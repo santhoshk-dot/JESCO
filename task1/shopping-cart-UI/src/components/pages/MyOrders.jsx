@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import api from "../api/axios"; // ✅ use centralized Axios instance
+import api from "../../api/axios";
 import {
   FaBoxOpen,
   FaMapMarkerAlt,

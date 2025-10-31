@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import api from "../api/axios"; // ✅ use your centralized Axios instance
+import api from "../../api/axios";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
