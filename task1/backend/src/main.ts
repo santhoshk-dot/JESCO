@@ -10,7 +10,7 @@ async function bootstrap() {
     origin: (origin, callback) => {
       const allowedOrigins = [
         'http://localhost:5173',
-        'https://jesco-orna.vercel.app',
+        'https://jesco-demo.vercel.app',    
       ];
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
