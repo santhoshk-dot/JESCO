@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../api/axios"; // ✅ use centralized Axios instance
 import {
   FaBoxOpen,
   FaMapMarkerAlt,
@@ -17,17 +17,15 @@ const MyOrders = () => {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await axios.get("http://jesco.onrender.com/orders/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await api.get("/orders/me"); // ✅ Automatically adds token if available
         setOrders(res.data || []);
       } catch (error) {
-        console.error("Error fetching orders:", error);
+        console.error("❌ Error fetching orders:", error);
       } finally {
         setLoading(false);
       }
     };
+
     fetchOrders();
   }, []);
 
@@ -85,7 +83,7 @@ const MyOrders = () => {
 
                 <button
                   onClick={() => toggleOrder(order._id)}
-                  className="flex items-center gap-2 bg-red-400  text-white text-sm font-medium px-4 py-2 rounded-lg transition"
+                  className="flex items-center gap-2 bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
                 >
                   {expandedOrder === order._id ? (
                     <>

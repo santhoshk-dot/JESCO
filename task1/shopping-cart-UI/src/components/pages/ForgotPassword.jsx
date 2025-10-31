@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../api/axios"; // ✅ use your centralized Axios instance
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -15,15 +15,18 @@ const ForgotPassword = () => {
     setError("");
 
     try {
-      const res = await axios.post(
-        "http://jesco.onrender.com/auth/forgot-password",
-        { email },
-        { withCredentials: true }
+      // ✅ Use the centralized Axios instance
+      const res = await api.post("/auth/forgot-password", { email });
+
+      setMessage(
+        res.data.message ||
+          "If this email exists, a reset link has been sent."
       );
-      setMessage(res.data.message || "If this email exists, a reset link has been sent.");
     } catch (err) {
+      console.error("❌ Forgot password error:", err);
       setError(
-        err.response?.data?.message || "Something went wrong. Please try again."
+        err.response?.data?.message ||
+          "Something went wrong. Please try again."
       );
     } finally {
       setLoading(false);
@@ -33,7 +36,9 @@ const ForgotPassword = () => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
-        <h2 className="text-2xl font-bold mb-6 text-center">Forgot Password</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center">
+          Forgot Password
+        </h2>
 
         {!message ? (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -60,9 +65,7 @@ const ForgotPassword = () => {
             </button>
           </form>
         ) : (
-          <p className="text-center text-green-600 font-medium">
-            {message}
-          </p>
+          <p className="text-center text-green-600 font-medium">{message}</p>
         )}
 
         {error && (

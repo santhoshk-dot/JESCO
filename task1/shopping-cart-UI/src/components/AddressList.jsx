@@ -1,18 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../api/axios"; // ✅ import your axios instance
 
 const AddressList = () => {
   const [addresses, setAddresses] = useState([]);
   const navigate = useNavigate();
 
-  // Fetch addresses from backend
+  // ✅ Fetch addresses from backend using centralized api
   const fetchAddresses = async () => {
     try {
-      const res = await axios.get("http://jesco.onrender.com/addresses");
+      const res = await api.get("/addresses");
       setAddresses(res.data);
     } catch (err) {
-      console.error(err);
+      console.error("❌ Failed to fetch addresses:", err);
     }
   };
 
@@ -20,21 +20,21 @@ const AddressList = () => {
     fetchAddresses();
   }, []);
 
-  // Select an address for checkout
+  // ✅ Select an address for checkout
   const handleSelect = (addr) => {
     localStorage.setItem("selectedAddress", JSON.stringify(addr));
     alert("Address selected for delivery!");
     navigate("/checkout");
   };
 
-  // Delete an address
+  // ✅ Delete an address
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this address?")) return;
     try {
-      await axios.delete(`http://jesco.onrender.com/addresses/${id}`);
-      setAddresses(prev => prev.filter(addr => addr._id !== id));
+      await api.delete(`/addresses/${id}`);
+      setAddresses((prev) => prev.filter((addr) => addr._id !== id));
     } catch (err) {
-      console.error(err);
+      console.error("❌ Failed to delete address:", err);
       alert("Failed to delete address");
     }
   };
@@ -48,13 +48,16 @@ const AddressList = () => {
       )}
 
       <ul className="space-y-2 mb-4">
-        {addresses.map(addr => (
+        {addresses.map((addr) => (
           <li
             key={addr._id}
             className="p-3 bg-white mb-3 rounded-lg shadow-sm flex justify-between items-center"
           >
             <div>
-              <p>{addr.address}, {addr.city}, {addr.state}, {addr.zip}, {addr.country}</p>
+              <p>
+                {addr.address}, {addr.city}, {addr.state}, {addr.zip},{" "}
+                {addr.country}
+              </p>
               <p className="text-sm text-gray-500">{addr.label}</p>
             </div>
             <div className="flex items-center gap-2">

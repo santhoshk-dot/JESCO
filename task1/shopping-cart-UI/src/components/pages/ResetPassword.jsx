@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
+import api from "../api/api"; // ✅ import your centralized axios instance
 
 const ResetPassword = () => {
   const { token } = useParams(); // token from URL: /reset-password/:token
@@ -21,7 +22,7 @@ const ResetPassword = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Password validation
+    // Validation
     if (formData.password.length < 6) {
       setErrorMsg("Password must be at least 6 characters long!");
       return;
@@ -36,33 +37,20 @@ const ResetPassword = () => {
       setLoading(true);
       setErrorMsg("");
 
-      const response = await fetch("http://jesco.onrender.com/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          newPassword: formData.password, // backend expects newPassword
-        }),
+      // ✅ Use centralized API
+      await api.post("/auth/reset-password", {
+        token,
+        newPassword: formData.password,
       });
-
-      if (!response.ok) {
-        const err = await response.json();
-
-        //  Show custom messages based on backend error
-        if (response.status === 401) {
-          throw new Error("Invalid or expired reset link. Please try again.");
-        }
-
-        if (response.status === 400) {
-          throw new Error("Password reset failed. Please check your password.");
-        }
-
-        throw new Error(err.message || "Something went wrong. Try again.");
-      }
 
       setSuccess(true);
     } catch (error) {
-      setErrorMsg(error.message);
+      const message =
+        error.response?.data?.message ||
+        (error.response?.status === 401
+          ? "Invalid or expired reset link. Please try again."
+          : "Something went wrong. Please try again.");
+      setErrorMsg(message);
     } finally {
       setLoading(false);
     }
@@ -108,7 +96,7 @@ const ResetPassword = () => {
               />
             </div>
 
-            {/* Error Message  */}
+            {/* Error Message */}
             {errorMsg && (
               <p className="text-red-600 text-sm text-center font-medium">
                 {errorMsg}
@@ -126,7 +114,7 @@ const ResetPassword = () => {
           </form>
         ) : (
           <p className="text-center text-green-600 font-medium">
-            ✅ Password has been successfully reset.  
+            ✅ Password has been successfully reset.{" "}
             <Link to="/login" className="text-black font-medium ml-1 underline">
               Login Now
             </Link>
