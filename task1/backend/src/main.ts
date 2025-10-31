@@ -12,11 +12,16 @@ async function bootstrap() {
         'http://localhost:5173',
         'https://jesco-demo.vercel.app',    
       ];
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`❌ Not allowed by CORS: ${origin}`));
-      }
+      if (
+  !origin ||
+  allowedOrigins.includes(origin) ||
+  origin.endsWith('.vercel.app')
+) {
+  callback(null, true);
+} else {
+  callback(new Error(`❌ Not allowed by CORS: ${origin}`));
+}
+
     },
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
