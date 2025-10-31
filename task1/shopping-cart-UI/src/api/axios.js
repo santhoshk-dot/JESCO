@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:3000", // Your backend base URL
+  baseURL: "http://jesco.onrender.com", // Your backend base URL
   withCredentials: true,             // Include cookies if backend uses them
   headers: {
     "Content-Type": "application/json",

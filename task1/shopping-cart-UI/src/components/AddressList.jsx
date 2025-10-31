@@ -9,7 +9,7 @@ const AddressList = () => {
   // Fetch addresses from backend
   const fetchAddresses = async () => {
     try {
-      const res = await axios.get("http://localhost:3000/addresses");
+      const res = await axios.get("http://jesco.onrender.com/addresses");
       setAddresses(res.data);
     } catch (err) {
       console.error(err);
@@ -31,7 +31,7 @@ const AddressList = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this address?")) return;
     try {
-      await axios.delete(`http://localhost:3000/addresses/${id}`);
+      await axios.delete(`http://jesco.onrender.com/addresses/${id}`);
       setAddresses(prev => prev.filter(addr => addr._id !== id));
     } catch (err) {
       console.error(err);

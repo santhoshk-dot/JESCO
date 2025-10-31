@@ -18,7 +18,7 @@ const MyOrders = () => {
     const fetchOrders = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await axios.get("http://localhost:3000/orders/me", {
+        const res = await axios.get("http://jesco.onrender.com/orders/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
         setOrders(res.data || []);

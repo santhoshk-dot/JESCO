@@ -16,7 +16,7 @@ const ForgotPassword = () => {
 
     try {
       const res = await axios.post(
-        "http://localhost:3000/auth/forgot-password",
+        "http://jesco.onrender.com/auth/forgot-password",
         { email },
         { withCredentials: true }
       );
