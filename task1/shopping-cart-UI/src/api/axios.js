@@ -1,8 +1,11 @@
 import axios from "axios";
 
+// ✅ Use environment variable for API base URL
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
 const api = axios.create({
-  baseURL: "http://jesco.onrender.com", // Your backend base URL
-  withCredentials: true,             // Include cookies if backend uses them
+  baseURL: API_BASE_URL,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
@@ -13,14 +16,12 @@ api.interceptors.request.use(
   (config) => {
     try {
       const token = localStorage.getItem("token");
-
       if (token && !config.headers.Authorization) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (err) {
       console.warn("⚠️ Failed to attach token:", err);
     }
-
     return config;
   },
   (error) => Promise.reject(error)
@@ -43,19 +44,15 @@ api.interceptors.response.use(
       console.warn("⚠️ Unauthorized! Clearing token and redirecting...");
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-
-      // prevent redirect loop
       if (window.location.pathname !== "/login") {
         window.location.href = "/login";
       }
     }
 
-    // Forbidden (no permission)
     if (status === 403) {
       alert("You do not have permission to perform this action.");
     }
 
-    // Generic server error
     if (status >= 500) {
       console.error("🔥 Server Error:", error.response);
     }
