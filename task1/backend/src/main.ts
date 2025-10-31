@@ -7,8 +7,10 @@ async function bootstrap() {
 
   //Proper CORS setup
   app.enableCors({
-    origin: "http://localhost:5173", // your React app URL
-    credentials: true, // allow cookies, auth headers
+   origin: [
+    'http://localhost:5173',
+    'https://jesco-orna.vercel.app',
+   ],    credentials: true, // allow cookies, auth headers
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     allowedHeaders: "Content-Type, Accept, Authorization",
   });
