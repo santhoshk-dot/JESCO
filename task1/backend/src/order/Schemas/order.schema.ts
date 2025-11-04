@@ -40,7 +40,7 @@ export class Order {
   @Prop({
     type: [
       {
-        productId: { type: Types.ObjectId, ref: 'Product', required: true },
+        productId: { type: String, ref: 'Product', required: true },
         name: { type: String, required: true },
         price: { type: Number, required: true },
         qty: { type: Number, required: true },
