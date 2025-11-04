@@ -17,12 +17,14 @@ export class OrdersService {
     private readonly usersService: UsersService,
   ) {
     this.twilioClient = twilio(
-      process.env.TWILIO_ACCOUNT_SID,
-      process.env.TWILIO_AUTH_TOKEN,
+      process.env.TWILIO_ACCOUNT_SID!,
+      process.env.TWILIO_AUTH_TOKEN!,
     );
   }
 
-  //Create order + send confirmation SMS dynamically   
+  /**
+   * ✅ Create new order + send SMS confirmation
+   */
   async create(data: CreateOrderDto & { userId: string }) {
     const newOrder = new this.orderModel({
       ...data,
@@ -30,54 +32,52 @@ export class OrdersService {
       userId: new Types.ObjectId(data.userId),
     });
 
-    const savedOrder = (await newOrder.save()) as Order & { _id: string };
+    const savedOrder = await newOrder.save();
 
     try {
-
-      //Fetch user
+      // Fetch user details
       const user = await this.usersService.findById(data.userId);
       if (!user) {
         this.logger.warn(`User ${data.userId} not found.`);
         return savedOrder;
       }
 
-      //Use the correct field (mobile)
-      const userPhone = user.mobile?.startsWith('+')
-        ? user.mobile
-        : `+91${user.mobile}`;
-
       if (!user.mobile) {
         this.logger.warn(`User ${user._id} has no mobile number.`);
         return savedOrder;
       }
 
-      // Send confirmation SMS
-    await this.sendSmsNotification(user.name, userPhone, savedOrder._id);
-    } catch (err) {
+      const userPhone = user.mobile.startsWith('+')
+        ? user.mobile
+        : `+91${user.mobile}`;
+
+      const orderId = (savedOrder._id as unknown as Types.ObjectId).toString();
+      await this.sendSmsNotification(user.name, userPhone, orderId);
+    } catch (err: any) {
       this.logger.error(`❌ Failed to send order SMS: ${err.message}`);
     }
 
     return savedOrder;
   }
 
-  // SMS sender (Twilio → fallback to Fast2SMS)
+  /**
+   * ✅ SMS notification sender (Twilio → fallback to Fast2SMS)
+   */
   private async sendSmsNotification(name: string, phone: string, orderId: string) {
-    const message = `✅ Hi ${name}, your order #${orderId} 
-    has been placed successfully! Thank you for shopping with us.`;
+    const message = `✅ Hi ${name}, your order #${orderId} has been placed successfully! Thank you for shopping with us.`;
 
     try {
-      // ---- Twilio ----
+      // Try Twilio
       await this.twilioClient.messages.create({
         body: message,
-        from: process.env.TWILIO_PHONE_NUMBER,
+        from: process.env.TWILIO_PHONE_NUMBER!,
         to: phone,
       });
       this.logger.log(`📩 SMS sent to ${phone} via Twilio`);
-    } catch (err) {
+    } catch (err: any) {
       this.logger.warn(`⚠️ Twilio failed: ${err.message}, using Fast2SMS fallback...`);
 
       try {
-        // ---- Fast2SMS fallback ----
         await axios.post(
           'https://www.fast2sms.com/dev/bulkV2',
           {
@@ -88,34 +88,48 @@ export class OrdersService {
             flash: 0,
             numbers: phone.replace('+91', ''),
           },
-          {
-            headers: { authorization: process.env.FAST2SMS_API_KEY },
-          },
+          { headers: { authorization: process.env.FAST2SMS_API_KEY! } },
         );
+
         this.logger.log(`📩 SMS sent to ${phone} via Fast2SMS`);
-      } catch (fallbackErr) {
+      } catch (fallbackErr: any) {
         this.logger.error(`🚫 SMS sending failed completely: ${fallbackErr.message}`);
       }
     }
   }
 
-  //  Fetch all orders for a user
+  /**
+   * ✅ Get all orders for a user
+   */
   async findAllByUser(userId: string) {
     const orders = await this.orderModel
       .find({ userId })
+      .populate('userId', 'name email mobile')
       .sort({ createdAt: -1 })
-      .lean();
+      .lean<{
+        _id: Types.ObjectId;
+        userId: { name: string; email: string; mobile: string };
+        deliveryAddress: any;
+        subtotal: number;
+        discount?: number;
+        total: number;
+        status: string;
+        deliveryDate: Date;
+        createdAt: Date;
+        items: { name: string; qty: number; price: number; productId: string }[];
+      }[]>();
 
     return orders.map((order) => ({
       _id: order._id,
       deliveryAddress: order.deliveryAddress,
-      orderNotes: order.orderNotes || '',
+      orderNotes: (order as any).orderNotes || '',
       subtotal: order.subtotal,
       discount: order.discount || 0,
       total: order.total,
       status: order.status || 'Processing',
       deliveryDate: order.deliveryDate,
       createdAt: order.createdAt,
+      user: order.userId,
       items: order.items.map((item) => ({
         name: item.name,
         qty: item.qty,
@@ -124,5 +138,29 @@ export class OrdersService {
         total: item.qty * item.price,
       })),
     }));
+  }
+
+  /**
+   * ✅ Find order by ID (for invoice)
+   */
+  async findById(id: string) {
+    const order = await this.orderModel
+      .findById(id)
+      .populate('userId', 'name email mobile')
+      .lean<{
+        tax: number;
+        paymentMethod: any;
+        paymentStatus: any;
+        _id: Types.ObjectId;
+        userId: { name: string; email: string; mobile: string };
+        createdAt: Date;
+        deliveryAddress: any;
+        subtotal: number;
+        discount: number;
+        total: number;
+        items: { name: string; qty: number; price: number }[];
+      }>();
+
+    return order;
   }
 }

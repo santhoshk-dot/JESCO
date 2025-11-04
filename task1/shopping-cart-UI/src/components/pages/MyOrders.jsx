@@ -7,6 +7,7 @@ import {
   FaCalendarAlt,
   FaChevronDown,
   FaChevronUp,
+  FaFileInvoice,
 } from "react-icons/fa";
 
 const MyOrders = () => {
@@ -17,7 +18,7 @@ const MyOrders = () => {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const res = await api.get("/orders/me"); // ✅ Automatically adds token if available
+        const res = await api.get("/orders/me");
         setOrders(res.data || []);
       } catch (error) {
         console.error("❌ Error fetching orders:", error);
@@ -25,9 +26,33 @@ const MyOrders = () => {
         setLoading(false);
       }
     };
-
     fetchOrders();
   }, []);
+
+  const toggleOrder = (orderId) => {
+    setExpandedOrder(expandedOrder === orderId ? null : orderId);
+  };
+
+  // 🧾 Download invoice PDF
+  const downloadInvoice = async (orderId) => {
+    try {
+      const response = await api.get(`/orders/${orderId}/invoice`, {
+        responseType: "blob", // important for binary files
+      });
+
+      // Create file download
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const link = document.createElement("a");
+      link.href = window.URL.createObjectURL(blob);
+      link.download = `invoice-${orderId}.pdf`;
+      link.click();
+
+      window.URL.revokeObjectURL(link.href);
+    } catch (err) {
+      console.error("❌ Error downloading invoice:", err);
+      alert("Failed to download invoice. Please try again later.");
+    }
+  };
 
   if (loading)
     return (
@@ -43,10 +68,6 @@ const MyOrders = () => {
         <p>No orders found yet.</p>
       </div>
     );
-
-  const toggleOrder = (orderId) => {
-    setExpandedOrder(expandedOrder === orderId ? null : orderId);
-  };
 
   return (
     <div className="max-w-6xl mx-auto py-10 px-4">
@@ -80,6 +101,15 @@ const MyOrders = () => {
                 <div className="bg-green-100 text-green-700 text-sm font-medium px-4 py-1.5 rounded-full">
                   {order.status ? order.status.toUpperCase() : "PLACED"}
                 </div>
+
+                {/* 🧾 Invoice Button */}
+                <button
+                  onClick={() => downloadInvoice(order._id)}
+                  className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
+                >
+                  <FaFileInvoice />
+                  Invoice
+                </button>
 
                 <button
                   onClick={() => toggleOrder(order._id)}
@@ -178,14 +208,8 @@ const MyOrders = () => {
       <style>
         {`
           @keyframes dropdown {
-            from {
-              opacity: 0;
-              transform: translateY(-10px);
-            }
-            to {
-              opacity: 1;
-              transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
           }
           .animate-dropdown {
             animation: dropdown 0.25s ease-out;

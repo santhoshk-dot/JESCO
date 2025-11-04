@@ -3,11 +3,15 @@ import { Document, Types } from 'mongoose';
 
 export type OrderDocument = Order & Document;
 
-@Schema({ timestamps: true })
+@Schema({ timestamps: true }) // auto adds createdAt and updatedAt
 export class Order {
-  // Linked user
+  // Linked user (for populate)
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
+
+  // Tax amount
+  @Prop({ type: Number, default: 0 })
+  tax: number;
 
   // Delivery details
   @Prop({
@@ -36,8 +40,7 @@ export class Order {
   @Prop({
     type: [
       {
-        // productId: { type: Types.ObjectId, ref: 'Product', required: true },
-         productId: { type: String, required: true },
+        productId: { type: Types.ObjectId, ref: 'Product', required: true },
         name: { type: String, required: true },
         price: { type: Number, required: true },
         qty: { type: Number, required: true },
@@ -66,7 +69,7 @@ export class Order {
   @Prop({ type: Number, required: true })
   total: number;
 
-  // Delivery details
+  // Delivery date
   @Prop({ type: Date, required: true })
   deliveryDate: Date;
 
@@ -78,7 +81,7 @@ export class Order {
   })
   status: string;
 
-  // Optional payment details (for future integration)
+  // Payment status
   @Prop({
     type: String,
     enum: ['Pending', 'Paid', 'Failed'],
@@ -86,18 +89,13 @@ export class Order {
   })
   paymentStatus: string;
 
+  // Payment method
   @Prop({
     type: String,
     enum: ['COD', 'Card', 'UPI', 'NetBanking'],
     default: 'COD',
   })
   paymentMethod: string;
-
-   @Prop()
-  createdAt?: Date;
-
-  @Prop()
-  updatedAt?: Date;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

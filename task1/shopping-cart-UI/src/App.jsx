@@ -76,7 +76,6 @@ const App = () => {
             <Route path="/brands" element={<BrandPage />} />
             <Route path="/myorders" element={<MyOrders />} />
             <Route path="/profile" element={<Profile />} />
-
           </Routes>
         <MenuSidebar isOpen={menuOpen} onClose={() => setMenuOpen(false)} />
         </FavouriteProvider>
