@@ -1,20 +1,49 @@
 import {
   Controller,
+  Post,
+  Body,
   Get,
   Param,
+  UseGuards,
+  Req,
   Res,
   NotFoundException,
 } from '@nestjs/common';
-import type { Response } from 'express';
-import * as PDFDocument from 'pdfkit';
-import moment from 'moment';
+import type{ Response } from 'express';
 import { OrdersService } from './order.service';
+import { CreateOrderDto } from './dto/order.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import PDFDocument from 'pdfkit';
+import  moment from 'moment';
 
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
-  // Download Invoice
+  // 🛒 Create a new order (Authenticated users only)
+  @UseGuards(JwtAuthGuard)
+  @Post()
+  async create(@Body() createOrderDto: CreateOrderDto, @Req() req) {
+    const userId = req.user?._id || req.user?.id;
+    return await this.ordersService.create({ ...createOrderDto, userId });
+  }
+
+  // 👤 Get all orders for a specific user (Admin use case)
+  @UseGuards(JwtAuthGuard)
+  @Get('user/:userId')
+  async findAllByUser(@Param('userId') userId: string) {
+    return await this.ordersService.findAllByUser(userId);
+  }
+
+  // 🙋‍♂️ Get all orders for the currently logged-in user
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  async findMyOrders(@Req() req) {
+    const userId = req.user?._id || req.user?.id;
+    return await this.ordersService.findAllByUser(userId);
+  }
+
+    // Download Invoice
   @Get(':id/invoice')
   async downloadInvoice(@Param('id') id: string, @Res() res: Response) {
     const order = await this.ordersService.findById(id);
@@ -116,4 +145,6 @@ export class OrdersController {
 
     doc.end();
   }
+
+
 }
