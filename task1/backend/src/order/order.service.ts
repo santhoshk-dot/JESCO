@@ -126,7 +126,7 @@ export class OrdersService {
       subtotal: order.subtotal,
       discount: order.discount || 0,
       total: order.total,
-      status: order.status || 'Processing',
+      status: order.status || 'Delivered',
       deliveryDate: order.deliveryDate,
       createdAt: order.createdAt,
       user: order.userId,
