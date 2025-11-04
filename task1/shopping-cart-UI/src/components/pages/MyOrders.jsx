@@ -37,16 +37,15 @@ const MyOrders = () => {
   const downloadInvoice = async (orderId) => {
     try {
       const response = await api.get(`/orders/${orderId}/invoice`, {
-        responseType: "blob", // important for binary files
+        responseType: "blob", // Important for PDF binary data
       });
 
-      // Create file download
+      // Create file blob & trigger download
       const blob = new Blob([response.data], { type: "application/pdf" });
       const link = document.createElement("a");
       link.href = window.URL.createObjectURL(blob);
       link.download = `invoice-${orderId}.pdf`;
       link.click();
-
       window.URL.revokeObjectURL(link.href);
     } catch (err) {
       console.error("❌ Error downloading invoice:", err);
@@ -54,20 +53,22 @@ const MyOrders = () => {
     }
   };
 
-  if (loading)
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh] text-gray-500">
         Loading your orders...
       </div>
     );
+  }
 
-  if (orders.length === 0)
+  if (orders.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-gray-500">
         <FaBoxOpen className="text-5xl mb-3 text-gray-400" />
         <p>No orders found yet.</p>
       </div>
     );
+  }
 
   return (
     <div className="max-w-6xl mx-auto py-10 px-4">
@@ -97,15 +98,21 @@ const MyOrders = () => {
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 mt-3 sm:mt-0">
-                <div className="bg-green-100 text-green-700 text-sm font-medium px-4 py-1.5 rounded-full">
+              <div className="flex flex-wrap gap-3 mt-3 sm:mt-0">
+                <div
+                  className={`${
+                    order.status?.toLowerCase() === "delivered"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-yellow-100 text-yellow-700"
+                  } text-sm font-medium px-4 py-1.5 rounded-full`}
+                >
                   {order.status ? order.status.toUpperCase() : "PLACED"}
                 </div>
 
                 {/* 🧾 Invoice Button */}
                 <button
                   onClick={() => downloadInvoice(order._id)}
-                  className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
                 >
                   <FaFileInvoice />
                   Invoice
@@ -113,7 +120,7 @@ const MyOrders = () => {
 
                 <button
                   onClick={() => toggleOrder(order._id)}
-                  className="flex items-center gap-2 bg-red-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
+                  className="flex items-center gap-2 bg-gray-700 hover:bg-gray-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition"
                 >
                   {expandedOrder === order._id ? (
                     <>
@@ -137,11 +144,11 @@ const MyOrders = () => {
                     <FaMapMarkerAlt className="text-gray-500" /> Delivery Address
                   </h4>
                   <p className="text-sm text-gray-600">
-                    {order.deliveryAddress.address},{" "}
-                    {order.deliveryAddress.city},{" "}
-                    {order.deliveryAddress.state} -{" "}
-                    {order.deliveryAddress.zip},{" "}
-                    {order.deliveryAddress.country}
+                    {order.deliveryAddress?.address},{" "}
+                    {order.deliveryAddress?.city},{" "}
+                    {order.deliveryAddress?.state} -{" "}
+                    {order.deliveryAddress?.zip},{" "}
+                    {order.deliveryAddress?.country}
                   </p>
                 </div>
 
@@ -186,14 +193,17 @@ const MyOrders = () => {
                 </div>
 
                 {/* Delivery Date */}
-                <div className="mt-3 text-sm text-gray-600 flex items-center gap-2">
-                  <FaCalendarAlt className="text-gray-400" />
-                  Expected Delivery:{" "}
-                  <span className="font-medium">
-                    {new Date(order.deliveryDate).toLocaleDateString("en-IN")}
-                  </span>
-                </div>
+                {order.deliveryDate && (
+                  <div className="mt-3 text-sm text-gray-600 flex items-center gap-2">
+                    <FaCalendarAlt className="text-gray-400" />
+                    Expected Delivery:{" "}
+                    <span className="font-medium">
+                      {new Date(order.deliveryDate).toLocaleDateString("en-IN")}
+                    </span>
+                  </div>
+                )}
 
+                {/* Notes */}
                 {order.orderNotes && (
                   <p className="mt-3 text-sm italic text-gray-500">
                     Note: {order.orderNotes}
