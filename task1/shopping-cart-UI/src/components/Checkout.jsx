@@ -118,7 +118,9 @@ export default function Checkout() {
     } finally {
       setLoading(false);
     }
-    console.log("🧾 orderData:", JSON.stringify(orderData, null, 2));
+    // console.log("🧾 orderData:", JSON.stringify(orderData, null, 2));
+    console.log(API_BASE_URL)
+
 
   };
 
