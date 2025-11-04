@@ -118,7 +118,6 @@ export default function Checkout() {
     } finally {
       setLoading(false);
     }
-    console.log(API_BASE_URL)
 
 
   };
