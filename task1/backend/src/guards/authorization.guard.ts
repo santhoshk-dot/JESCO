@@ -1,7 +1,6 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { AuthService } from "src/auth/auth.service";
-import { PERMISSIONS_KEY } from "src/decorators/roles.decorator";
 import { Permission } from "src/roles/dto/role.dto";
 
 @Injectable()
@@ -20,11 +19,7 @@ export class AuthorizationGuard implements CanActivate{
             throw new UnauthorizedException('User Id not found')
         }
 
-        const routePermissions: Permission[] = this.reflector.getAllAndOverride(
-            PERMISSIONS_KEY,[context.getHandler(),context.getClass()]
-        )
 
-        console.log(` the route permissions are ${routePermissions}`)
 
         // try {
         //     const userPermissions = await this.authService.getUserPermissions(
