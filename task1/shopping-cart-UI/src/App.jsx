@@ -29,11 +29,11 @@ import AddressList from "./components/AddressList";
 import BrandPage from "./components/Brands";
 
 // 🧭 Admin pages
-import AdminLayout from "./pages/admin/AdminLayout";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminProducts from "./pages/admin/AdminProducts";
-import AdminOrders from "./pages/admin/AdminOrders";
-import AdminUsers from "./pages/admin/AdminUsers";
+import AdminLayout from "./components/admin/AdminLayout";
+import AdminDashboard from "./components/admin/AdminDashboard";
+import AdminProducts from "./components/admin/AdminProducts";
+import AdminOrders from "./components/admin/AdminOrders";
+import AdminUsers from "./components/admin/AdminUsers";
 
 // ✅ Protected Admin Route Wrapper
 const AdminRoute = ({ children }) => {
@@ -97,7 +97,7 @@ const AppContent = () => {
               <Route index element={<AdminDashboard />} />
               <Route path="products" element={<AdminProducts />} />
               <Route path="orders" element={<AdminOrders />} />
-              {/* <Route path="users" element={<AdminUsers />} /> */}
+              <Route path="users" element={<AdminUsers />} />
             </Route>
           </Routes>
 
