@@ -32,7 +32,7 @@ import BrandPage from "./components/Brands";
 import AdminLayout from "./components/admin/AdminLayout";
 import AdminDashboard from "./components/admin/AdminDashboard";
 import AdminProducts from "./components/admin/AdminProducts";
-import AdminOrders from "./components/admin/AdminOrders";
+// import AdminOrders from "./components/admin/AdminOrders";
 // import AdminUsers from "./components/admin/AdminUsers";
 
 // ✅ Protected Admin Route Wrapper
@@ -96,7 +96,7 @@ const AppContent = () => {
             >
               <Route index element={<AdminDashboard />} />
               <Route path="products" element={<AdminProducts />} />
-              <Route path="orders" element={<AdminOrders />} />
+              {/* <Route path="orders" element={<AdminOrders />} /> */}
               {/* <Route path="users" element={<AdminUsers />} /> */}
             </Route>
           </Routes>
