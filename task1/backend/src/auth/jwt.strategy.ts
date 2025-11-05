@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { AuthService } from './auth.service';
 import { ConfigService } from '@nestjs/config';
+import { JwtPayload } from './jwt-payload.interface';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -11,20 +12,29 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly configService: ConfigService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(), // get token from Authorization: Bearer <token>
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(), // Get token from headers
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET') || 'DEFAULT_SECRET', // fallback secret
+      secretOrKey: configService.get<string>('JWT_SECRET') || 'DEFAULT_SECRET',
     });
   }
 
-  // Called automatically by Passport when a valid JWT is provided
-  async validate(payload: { sub: string; email: string }) {
-    // payload.sub is user._id from AuthService.generateJwt
+  /**
+   * ✅ Called automatically when a valid JWT is provided
+   * payload.sub = user._id (from generateJwt)
+   */
+  async validate(payload: JwtPayload) {
     const user = await this.authService.validateUser(payload);
+
     if (!user) {
-      // If user not found or deleted
-      return null;
+      throw new UnauthorizedException('Invalid or expired token');
     }
-    return user; // attaches user to req.user
+
+    // Attach user object to request (used later in guards/controllers)
+    return {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role, //critical for admin access
+    };
   }
 }

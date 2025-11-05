@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import { useNavigate } from "react-router-dom";
 
 const AuthContext = createContext();
@@ -8,14 +15,15 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const navigate = useNavigate();
 
-  // Load from localStorage once at startup
+  // 🔹 Load from localStorage on first mount
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem("user");
       const storedToken = localStorage.getItem("token");
 
       if (storedUser && storedToken) {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
         setToken(storedToken);
       }
     } catch (err) {
@@ -25,10 +33,11 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  // Login: normalize + persist user/token
+  // 🔹 Login handler
   const login = useCallback((userData, jwtToken) => {
     if (!userData || !jwtToken) return;
 
+    // Normalize and ensure defaults
     const normalizedUser = {
       _id: userData._id || userData.id || null,
       name: userData.name || "",
@@ -37,14 +46,16 @@ export const AuthProvider = ({ children }) => {
       ...userData,
     };
 
+    // Persist to localStorage
     localStorage.setItem("user", JSON.stringify(normalizedUser));
     localStorage.setItem("token", jwtToken);
 
+    // Set state
     setUser(normalizedUser);
     setToken(jwtToken);
   }, []);
 
-  // Logout: clear everything and redirect
+  // 🔹 Logout handler
   const logout = useCallback(() => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
@@ -53,19 +64,27 @@ export const AuthProvider = ({ children }) => {
     navigate("/login", { replace: true });
   }, [navigate]);
 
-  // Derived state
+  // 🔹 Derived states
   const isLoggedIn = !!token && !!user?._id;
+  const isAdmin = user?.role === "admin";
 
-  // Memoize the context to prevent unnecessary re-renders
+  // 🔹 Memoize context value
   const value = useMemo(
-    () => ({ user, token, isLoggedIn, login, logout }),
-    [user, token, isLoggedIn, login, logout]
+    () => ({
+      user,
+      token,
+      isLoggedIn,
+      isAdmin,
+      login,
+      logout,
+    }),
+    [user, token, isLoggedIn, isAdmin, login, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook
+// Custom hook for cleaner access
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
   if (!ctx) {

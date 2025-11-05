@@ -10,6 +10,8 @@ import { UsersModule } from './users/users.module';
 import { AddressesModule } from './address/address.module';
 import { OrdersModule } from './order/order.module';
 import  config  from './config/config';
+import { AdminModule } from './admin/admin.module';
+import { ProductModule } from './products/product.module';
 
 @Module({
   imports: [
@@ -39,6 +41,8 @@ import  config  from './config/config';
     UsersModule,
     AddressesModule,
     OrdersModule,
+    AdminModule,
+    ProductModule,
     
   ],
   controllers: [AppController],

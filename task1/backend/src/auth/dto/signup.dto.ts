@@ -1,4 +1,12 @@
-import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MinLength,
+  IsIn,
+} from 'class-validator';
 
 export class SignupDto {
   @IsString()
@@ -21,6 +29,17 @@ export class SignupDto {
   @IsNotEmpty()
   otp: string;
 
+  // 🧩 Optional role field (user/admin)
+  @IsOptional()
+  @IsIn(['user', 'admin'])
+  role?: 'user' | 'admin';
+
+  // 🧩 Optional admin secret key (for admin signup only)
+  @IsOptional()
+  @IsString()
+  adminSecret?: string;
+
+  // 🧩 Optional verification status
   @IsOptional()
   @IsBoolean()
   isVerified?: boolean;

@@ -1,4 +1,10 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
@@ -16,69 +22,75 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  // In-memory OTP store
+  // 🔢 In-memory OTP store
   private otpStore = new Map<string, { otp: string; expiresAt: number }>();
 
-  // Twilio client setup
+  // 📞 Twilio client setup
   private twilioClient = twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN,
   );
 
-  
-  //  Send OTP dynamically using Twilio
+  /** 📲 Send OTP for signup */
   async sendOtp(mobile: string) {
     if (!mobile) throw new BadRequestException('Mobile number is required');
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 5 * 60 * 1000; // valid for 5 min
+    const expiresAt = Date.now() + 5 * 60 * 1000; // valid for 5 minutes
     this.otpStore.set(mobile, { otp, expiresAt });
 
     try {
-      // Ensure the number includes country code (+91 for India)
       const phoneNumber = mobile.startsWith('+') ? mobile : `+91${mobile}`;
-
       await this.twilioClient.messages.create({
-        body: `🔐 Your verification code is ${otp}. It expires in 5 minutes.`,
-        from: process.env.TWILIO_PHONE_NUMBER, // Twilio verified number
+        body: `🔐 Your Jesco verification code: ${otp}. It expires in 5 minutes.`,
+        from: process.env.TWILIO_PHONE_NUMBER,
         to: phoneNumber,
       });
 
       return { message: 'OTP sent successfully' };
     } catch (err) {
-    console.error('❌ Error sending OTP via Twilio:', {
-    message: err.message,
-    code: err.code,
-    moreInfo: err.moreInfo,
-    status: err.status,
-  });
-  throw new BadRequestException('Failed to send OTP: ' + err.message);
-}
+      console.error('❌ Error sending OTP via Twilio:', err);
+      throw new BadRequestException('Failed to send OTP: ' + err.message);
+    }
   }
 
-  
-  //Signup with OTP verification
+  /** 🧍 Signup with OTP verification + secure role assignment */
   async signup(data: any) {
-    const { name, email, password, mobile, otp } = data;
+    const { name, email, password, mobile, otp, role, adminSecret } = data;
 
+    // ✅ Validate OTP
     const stored = this.otpStore.get(mobile);
     if (!stored || stored.otp !== otp || stored.expiresAt < Date.now()) {
       throw new UnauthorizedException('Invalid or expired OTP');
     }
 
+    // ✅ Prevent duplicate emails
     const existingUser = await this.usersService.findByEmail(email);
     if (existingUser) throw new ConflictException('Email already registered');
 
+    // ✅ Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
+
+    // ✅ Role control — secure admin creation
+    let assignedRole: 'user' | 'admin' = 'user';
+    if (role === 'admin') {
+      if (adminSecret !== process.env.ADMIN_SECRET_KEY) {
+        throw new ForbiddenException('Invalid admin secret');
+      }
+      assignedRole = 'admin';
+    }
+
+    // ✅ Create the user
     const user = await this.usersService.create({
       name,
       email,
       password: hashedPassword,
       mobile,
-      isVerified: true, //matches your schema field
+      isVerified: true,
+      role: assignedRole,
     });
 
-    // Clear OTP after successful signup
+    // Remove OTP once used
     this.otpStore.delete(mobile);
 
     const token = this.generateJwt(user);
@@ -86,12 +98,13 @@ export class AuthService {
     return {
       message: 'User registered successfully',
       token,
-      user: plainToInstance(UserResponseDto, user, { excludeExtraneousValues: true }),
+      user: plainToInstance(UserResponseDto, user, {
+        excludeExtraneousValues: true,
+      }),
     };
   }
 
-  
-  //Login
+  /** 🔑 Login */
   async login(loginDto: LoginDto) {
     const { email, password } = loginDto;
     const user = await this.usersService.findByEmail(email);
@@ -101,25 +114,30 @@ export class AuthService {
     if (!isMatch) throw new UnauthorizedException('Invalid credentials');
 
     const token = this.generateJwt(user);
-
     return {
       token,
-      user: plainToInstance(UserResponseDto, user, { excludeExtraneousValues: true }),
+      user: plainToInstance(UserResponseDto, user, {
+        excludeExtraneousValues: true,
+      }),
     };
   }
 
-  
-  //  JWT Helpers
+  /** 🎟️ Generate JWT */
   generateJwt(user: any) {
-    const payload = { sub: user._id.toString(), email: user.email };
+    const payload = {
+      sub: user._id.toString(),
+      email: user.email,
+      role: user.role,
+    };
     return this.jwtService.sign(payload);
   }
 
+  /** 🔍 Validate JWT payload */
   async validateUser(payload: { sub: string; email: string }) {
     return this.usersService.findById(payload.sub);
   }
 
-//  Forgot/Reset Password
+  /** 🔐 Request password reset */
   async requestPasswordReset(email: string) {
     const user = await this.usersService.findByEmail(email);
     if (!user)
@@ -136,7 +154,7 @@ export class AuthService {
 
     const resetLink = `http://localhost:5173/reset-password/${token}`;
     await transporter.sendMail({
-      from: `"MyApp Support" <${process.env.MAIL_USER}>`,
+      from: `"Jesco Support" <${process.env.MAIL_USER}>`,
       to: email,
       subject: 'Password Reset Request',
       html: `<p>Hi ${user.name},</p>
@@ -148,6 +166,7 @@ export class AuthService {
     return { message: 'Password reset email sent successfully' };
   }
 
+  /** 🔁 Reset password */
   async resetPassword(token: string, newPassword: string) {
     const user = await this.usersService.findByResetToken(token);
     if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {

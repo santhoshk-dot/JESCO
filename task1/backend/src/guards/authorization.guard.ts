@@ -1,7 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { AuthService } from "src/auth/auth.service";
-import { PERMISSIONS_KEY } from "src/decorators/permission.decorator";
+import { PERMISSIONS_KEY } from "src/decorators/roles.decorator";
 import { Permission } from "src/roles/dto/role.dto";
 
 @Injectable()

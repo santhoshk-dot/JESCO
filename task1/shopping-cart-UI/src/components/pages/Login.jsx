@@ -30,23 +30,40 @@ const Login = () => {
     try {
       setLoading(true);
 
-      const res = await api.post("/auth/login", formData); // token auto-handled
+      const res = await api.post("/auth/login", formData);
 
-      // Store token & user in localStorage
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("user", JSON.stringify(res.data.user));
+      const { token, user } = res.data;
 
-      // Update AuthContext
-      login(res.data.user, res.data.token);
+      if (!user) {
+        throw new Error("User data missing in response");
+      }
+
+      // 🧠 Store login details
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("role", user.role || "user");
+
+      // Update Auth Context
+      login(user, token);
 
       setSuccessMsg("✅ Login successful! Redirecting...");
-      setTimeout(() => navigate("/"), 1500);
+
+      // 🧭 Redirect based on role
+      setTimeout(() => {
+        if (user.role === "admin") {
+          navigate("/admin/dashboard");
+        } else {
+          navigate("/");
+        }
+      }, 1000);
     } catch (err) {
       console.error("Login error:", err.response?.data || err.message);
       if (err.response?.status === 401) {
         setErrorMsg("Invalid email or password!");
       } else {
-        setErrorMsg(err.response?.data?.message || "Login failed. Please try again.");
+        setErrorMsg(
+          err.response?.data?.message || "Login failed. Please try again."
+        );
       }
     } finally {
       setLoading(false);
@@ -89,11 +106,15 @@ const Login = () => {
           </div>
 
           {errorMsg && (
-            <p className="text-red-600 text-sm text-center font-medium">{errorMsg}</p>
+            <p className="text-red-600 text-sm text-center font-medium">
+              {errorMsg}
+            </p>
           )}
 
           {successMsg && (
-            <p className="text-green-600 text-sm text-center font-medium">{successMsg}</p>
+            <p className="text-green-600 text-sm text-center font-medium">
+              {successMsg}
+            </p>
           )}
 
           <button

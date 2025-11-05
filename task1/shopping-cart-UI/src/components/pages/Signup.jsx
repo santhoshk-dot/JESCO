@@ -11,6 +11,8 @@ const Signup = () => {
     password: "",
     mobile: "",
     otp: "",
+    role: "user",        // 👈 default role
+    adminSecret: "",     // 👈 only used if role = admin
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -20,13 +22,13 @@ const Signup = () => {
   const [success, setSuccess] = useState("");
 
   const navigate = useNavigate();
-  const { login } = useAuth(); //Import login from AuthContext
+  const { login } = useAuth();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  //Send OTP
+  // Send OTP
   const handleSendOtp = async () => {
     if (!formData.mobile) {
       alert("Please enter mobile number first!");
@@ -44,7 +46,7 @@ const Signup = () => {
     }
   };
 
-  //Signup + Auto Login
+  // Signup + Auto Login
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -52,12 +54,15 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      const res = await api.post("/auth/signup", formData);
+      // Filter out adminSecret if role != admin
+      const payload = { ...formData };
+      if (payload.role !== "admin") delete payload.adminSecret;
+
+      const res = await api.post("/auth/signup", payload);
       const { token, user } = res.data;
 
       if (token && user) {
         login(user, token);
-
         setSuccess("Signup successful! Redirecting...");
         setTimeout(() => navigate("/"), 800);
       } else {
@@ -120,6 +125,35 @@ const Signup = () => {
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
+
+          {/* Role Selector */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Select Role
+            </label>
+            <select
+              name="role"
+              value={formData.role}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:ring-black"
+            >
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+
+          {/* Admin Secret (only if admin) */}
+          {formData.role === "admin" && (
+            <input
+              type="text"
+              name="adminSecret"
+              placeholder="Enter Admin Secret Key"
+              value={formData.adminSecret}
+              onChange={handleChange}
+              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring focus:ring-black"
+              required
+            />
+          )}
 
           {/* Mobile + OTP */}
           <div className="flex space-x-2">

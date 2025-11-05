@@ -10,8 +10,8 @@ export class User {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true, unique: true })
-  email: string;   
+  @Prop({ required: true, unique: true, lowercase: true, trim: true })
+  email: string;
 
   @Prop({ required: true })
   password: string;
@@ -28,6 +28,16 @@ export class User {
   @Prop({ type: Date, default: null })
   resetTokenExpiry?: Date | null;
 
+  // New fields for admin dashboard
+  @Prop({
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user',
+  })
+  role: 'user' | 'admin';
+
+  @Prop({ default: true })
+  isActive: boolean;
 
 }
 
