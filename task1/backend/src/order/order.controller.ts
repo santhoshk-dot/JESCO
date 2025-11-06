@@ -28,6 +28,13 @@ export class OrdersController {
     return await this.ordersService.create({ ...createOrderDto, userId });
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  async findAll() {
+  return await this.ordersService.findAll();
+  }
+
+
   // 👤 Get all orders for a specific user (Admin use case)
   @UseGuards(JwtAuthGuard)
   @Get('user/:userId')

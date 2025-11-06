@@ -12,7 +12,7 @@ const AdminOrders = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/orders"); // Adjust path if needed
+      const res = await api.get("/orders"); 
       setOrders(res.data);
     } catch (err) {
       console.error("Error fetching orders:", err);

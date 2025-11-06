@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // ✅ Use environment variable for API base URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://jesco.onrender.com";
 console.log("🔍 API Base URL:", API_BASE_URL);
 
 

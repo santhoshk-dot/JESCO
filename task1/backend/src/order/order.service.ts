@@ -60,6 +60,11 @@ export class OrdersService {
     return savedOrder;
   }
 
+  async findAll() {
+  return this.orderModel.find().populate('userId').sort({ createdAt: -1 });
+}
+
+
   /**
    * ✅ SMS notification sender (Twilio → fallback to Fast2SMS)
    */
