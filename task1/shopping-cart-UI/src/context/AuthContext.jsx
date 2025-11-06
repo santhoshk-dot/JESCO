@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const navigate = useNavigate();
 
-  // 🔹 Load from localStorage on first mount
+  // 🔹 Load from localStorage on mount
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem("user");
@@ -37,20 +37,17 @@ export const AuthProvider = ({ children }) => {
   const login = useCallback((userData, jwtToken) => {
     if (!userData || !jwtToken) return;
 
-    // Normalize and ensure defaults
     const normalizedUser = {
       _id: userData._id || userData.id || null,
       name: userData.name || "",
       email: userData.email || "",
-      role: userData.role || "user",
-      ...userData,
+      ...userData, //  ensures backend role overrides
+      role: userData.role || "user", // fallback if missing
     };
 
-    // Persist to localStorage
     localStorage.setItem("user", JSON.stringify(normalizedUser));
     localStorage.setItem("token", jwtToken);
 
-    // Set state
     setUser(normalizedUser);
     setToken(jwtToken);
   }, []);
@@ -68,7 +65,7 @@ export const AuthProvider = ({ children }) => {
   const isLoggedIn = !!token && !!user?._id;
   const isAdmin = user?.role === "admin";
 
-  // 🔹 Memoize context value
+  // 🔹 Memoized value
   const value = useMemo(
     () => ({
       user,
@@ -84,11 +81,9 @@ export const AuthProvider = ({ children }) => {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook for cleaner access
+// Custom hook
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
   return ctx;
 };
