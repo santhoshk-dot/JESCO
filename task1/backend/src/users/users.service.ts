@@ -24,8 +24,8 @@ export class UsersService {
   }
 
    async findAll() {
-  return this.userModel.find().populate('userId').sort({ createdAt: -1 });
-}
+    return this.userModel.find().select('-password').lean();
+  }
 
 
   /** 🔍 Find user by email */

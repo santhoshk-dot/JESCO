@@ -15,6 +15,8 @@ import { CreateOrderDto } from './dto/order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import PDFDocument from 'pdfkit';
 import  moment from 'moment';
+import { RolesGuard } from 'src/guards/roles.guard';
+import { Roles } from 'src/decorators/roles.decorator';
 
 @Controller('orders')
 export class OrdersController {
@@ -28,7 +30,8 @@ export class OrdersController {
     return await this.ordersService.create({ ...createOrderDto, userId });
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @Get()
   async findAll() {
   return await this.ordersService.findAll();
