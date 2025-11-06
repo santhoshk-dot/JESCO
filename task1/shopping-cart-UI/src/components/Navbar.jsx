@@ -154,7 +154,7 @@ const Navbar = ({ onToggleCart, onToggleMenu }) => {
                   {/* 🛠️ Admin Dashboard Link */}
                   {user.role === "admin" && (
                     <Link
-                      to="/admin/dashboard"
+                      to="/admin"
                       onClick={() => setMenuOpen(false)}
                       className="block px-4 py-2 text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-700"
                     >

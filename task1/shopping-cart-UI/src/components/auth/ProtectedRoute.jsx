@@ -9,16 +9,17 @@ import { useAuth } from "../../context/AuthContext";
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, isLoggedIn } = useAuth();
 
-  // 🔒 Not logged in
+  // 🔒 Not logged in → redirect to login
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
   }
 
-  // 🚫 Logged in but doesn't have permission
+  // 🚫 Logged in but lacks role permission
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }
 
+  // ✅ User is authorized
   return children;
 };
 

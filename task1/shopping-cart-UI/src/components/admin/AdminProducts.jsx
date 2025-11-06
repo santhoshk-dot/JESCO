@@ -26,11 +26,25 @@ const AdminProducts = () => {
   const [page, setPage] = useState(1);
   const itemsPerPage = 5;
 
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      brand: "",
+      category: "",
+      price: "",
+      stock: "",
+      image: "",
+    });
+    setImageFile(null);
+    setEditingProduct(null);
+    setShowForm(false);
+  };
+
   // ✅ Fetch all products
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${VITE_API_URL}/products`);
+      const res = await axios.get(`${API_BASE_URL}/products`);
       setProducts(res.data);
       setFiltered(res.data);
     } catch (err) {
@@ -64,7 +78,7 @@ const AdminProducts = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // ✅ Handle image upload to Cloudinary
+  // ✅ Handle image upload
   const handleImageUpload = async (file) => {
     if (!file) return;
     const data = new FormData();
@@ -72,12 +86,14 @@ const AdminProducts = () => {
     data.append("upload_preset", CLOUDINARY_PRESET);
 
     try {
-      toast.loading("Uploading image...", { id: "upload" });
+      toast.loading("Uploading image...");
       const res = await axios.post(CLOUDINARY_URL, data);
-      toast.success("Image uploaded!", { id: "upload" });
+      toast.dismiss();
+      toast.success("Image uploaded!");
       return res.data.secure_url;
     } catch (err) {
-      toast.error("Image upload failed", { id: "upload" });
+      toast.dismiss();
+      toast.error("Image upload failed");
       console.error(err);
       return null;
     }
@@ -96,24 +112,14 @@ const AdminProducts = () => {
       const payload = { ...formData, image: imageUrl };
 
       if (editingProduct) {
-        await axios.put(`${VITE_API_URL}/products/${editingProduct._id}`, payload);
+        await axios.put(`${API_BASE_URL}/products/${editingProduct._id}`, payload);
         toast.success("Product updated successfully!");
       } else {
-        await axios.post(`${VITE_API_URL}/products`, payload);
+        await axios.post(`${API_BASE_URL}/products`, payload);
         toast.success("Product added successfully!");
       }
 
-      setShowForm(false);
-      setEditingProduct(null);
-      setFormData({
-        name: "",
-        brand: "",
-        category: "",
-        price: "",
-        stock: "",
-        image: "",
-      });
-      setImageFile(null);
+      resetForm();
       fetchProducts();
     } catch (err) {
       toast.error("Error saving product");
@@ -132,7 +138,7 @@ const AdminProducts = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this product?")) return;
     try {
-      await axios.delete(`${VITE_API_URL}/products/${id}`);
+      await axios.delete(`${API_BASE_URL}/products/${id}`);
       toast.success("Product deleted!");
       fetchProducts();
     } catch (err) {
@@ -150,14 +156,7 @@ const AdminProducts = () => {
           onClick={() => {
             setShowForm(true);
             setEditingProduct(null);
-            setFormData({
-              name: "",
-              brand: "",
-              category: "",
-              price: "",
-              stock: "",
-              image: "",
-            });
+            resetForm();
           }}
           className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
         >
@@ -177,7 +176,7 @@ const AdminProducts = () => {
         />
       </div>
 
-      {/* Loading Spinner */}
+      {/* 🌀 Loading Spinner */}
       {loading ? (
         <div className="flex justify-center items-center h-40">
           <Loader2 className="animate-spin text-gray-500" size={30} />
@@ -266,68 +265,6 @@ const AdminProducts = () => {
               </button>
             </div>
           )}
-        </div>
-      )}
-
-      {/* 🧾 Add/Edit Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-xl w-full max-w-md">
-            <h2 className="text-lg font-semibold mb-4">
-              {editingProduct ? "Edit Product" : "Add Product"}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-3">
-              {["name", "brand", "category", "price", "stock"].map((f) => (
-                <div key={f}>
-                  <label className="block text-sm font-medium mb-1 capitalize">
-                    {f}
-                  </label>
-                  <input
-                    type={f === "price" || f === "stock" ? "number" : "text"}
-                    name={f}
-                    value={formData[f]}
-                    onChange={handleChange}
-                    required
-                    className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                  />
-                </div>
-              ))}
-
-              {/* 🖼 Image Upload */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Product Image</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setImageFile(e.target.files[0])}
-                  className="w-full p-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600"
-                />
-                {formData.image && (
-                  <img
-                    src={formData.image}
-                    alt="Preview"
-                    className="mt-2 w-24 h-24 object-cover rounded-lg"
-                  />
-                )}
-              </div>
-
-              <div className="flex justify-end gap-2 mt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  {editingProduct ? "Update" : "Add"}
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
       )}
     </div>
