@@ -23,8 +23,8 @@ export class UsersService {
     return await newUser.save();
   }
 
-   async findAll() {
-    return this.userModel.find().select('-password').lean();
+    async findAll() {
+    return this.userModel.find().select('-password').sort({ createdAt: -1 });
   }
 
 
