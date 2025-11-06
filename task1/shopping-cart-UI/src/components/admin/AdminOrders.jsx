@@ -64,7 +64,7 @@ const AdminOrders = () => {
     );
 
   return (
-    <div className="p-6">
+    <div className="p-6 bg-gray-100">
       <Toaster position="top-right" />
       <h2 className="text-2xl font-semibold mb-6">📦 All Orders</h2>
 
@@ -74,7 +74,7 @@ const AdminOrders = () => {
         <div className="overflow-x-auto">
           <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg shadow">
             <thead>
-              <tr className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+              <tr className="bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300">
                 <th className="px-4 py-3 text-left">Order ID</th>
                 <th className="px-4 py-3 text-left">Customer</th>
                 <th className="px-4 py-3 text-left">Total</th>

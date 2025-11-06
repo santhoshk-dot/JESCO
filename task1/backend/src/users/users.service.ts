@@ -23,6 +23,11 @@ export class UsersService {
     return await newUser.save();
   }
 
+   async findAll() {
+  return this.userModel.find().populate('userId').sort({ createdAt: -1 });
+}
+
+
   /** 🔍 Find user by email */
   async findByEmail(email: string): Promise<User | null> {
     return this.userModel.findOne({ email }).exec();
