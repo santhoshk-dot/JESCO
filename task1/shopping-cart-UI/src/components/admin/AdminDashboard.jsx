@@ -1,13 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../../api/axios";
-import {
-  Users,
-  ShoppingBag,
-  Package,
-  IndianRupee,
-  Loader2,
-  TrendingUp,
-} from "lucide-react";
+import { Users, ShoppingBag, Package, IndianRupee, Loader2, TrendingUp } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 const AdminDashboard = () => {
