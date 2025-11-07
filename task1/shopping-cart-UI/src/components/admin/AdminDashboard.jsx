@@ -18,7 +18,7 @@ const AdminDashboard = () => {
         const [usersRes, ordersRes, productsRes] = await Promise.all([
           api.get("/users"),
           api.get("/orders"),
-          api.get("/products"),
+        //   api.get("/products"),
         ]);
 
         const totalUsers = usersRes.data.length;
