@@ -18,20 +18,24 @@ export class ProductService {
     private readonly productModel: Model<ProductDocument>,
   ) {}
 
-  // 🆕 Create product
+  // 🆕 Create a new product (Admin only)
   async create(data: any) {
     const product = new this.productModel(data);
     return await product.save();
   }
 
-  // 🔍 Get all products (with pagination, filtering, search)
+  // 🔍 Get all products (public - supports pagination, filters, search)
   async findAll(options: ProductQueryOptions) {
     const { page = 1, limit = 20, search, category, brand } = options;
-
     const filters: Record<string, any> = {};
 
+    // 🔹 Full-text search by name, category, or brand
     if (search) {
-      filters.name = { $regex: search, $options: 'i' }; // case-insensitive search
+      filters.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { brand: { $regex: search, $options: 'i' } },
+        { category: { $regex: search, $options: 'i' } },
+      ];
     }
 
     if (category) filters.category = category;
@@ -45,7 +49,7 @@ export class ProductService {
         .skip(skip)
         .limit(limit)
         .sort({ createdAt: -1 })
-        .lean(), // better performance, returns plain JS objects
+        .lean(),
       this.productModel.countDocuments(filters),
     ]);
 
@@ -53,18 +57,19 @@ export class ProductService {
       data,
       total,
       page,
+      limit,
       totalPages: Math.ceil(total / limit),
     };
   }
 
-  // 🔎 Find single product
-  async findOne(id: string) {
+  // 🔎 Get a single product by ID
+  async findById(id: string) {
     const product = await this.productModel.findById(id).lean();
     if (!product) throw new NotFoundException('Product not found');
     return product;
   }
 
-  // ✏️ Update product
+  // ✏️ Update an existing product (Admin only)
   async update(id: string, data: any) {
     const product = await this.productModel.findByIdAndUpdate(id, data, {
       new: true,
@@ -75,8 +80,8 @@ export class ProductService {
     return product;
   }
 
-  // 🗑️ Delete product
-  async delete(id: string) {
+  // 🗑️ Delete product (Admin only)
+  async remove(id: string) {
     const product = await this.productModel.findByIdAndDelete(id);
     if (!product) throw new NotFoundException('Product not found');
     return { message: 'Product deleted successfully' };

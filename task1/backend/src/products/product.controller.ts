@@ -12,7 +12,7 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
-import { CreateProductDto, UpdateProductDto } from './dto/product,dto';
+import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
 import { Roles } from '../decorators/roles.decorator';
@@ -52,7 +52,7 @@ export class ProductController {
    */
   @Get(':id')
   async findOne(@Param('id') id: string) {
-    return this.productService.findOne(id);
+    return this.productService.findById(id);
   }
 
   /**
@@ -72,6 +72,6 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   async delete(@Param('id') id: string) {
-    return this.productService.delete(id);
+    return this.productService.remove(id);
   }
 }
