@@ -16,6 +16,7 @@ import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
 import { Roles } from '../decorators/roles.decorator';
+import { slugify } from '../utils/slugify'
 
 @Controller('products')
 export class ProductController {
@@ -29,30 +30,34 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   async create(@Body() data: CreateProductDto) {
-    return this.productService.create(data);
+    // Auto-generate slug if not provided
+    if (!data.slug && data.name) {
+      data.slug = slugify(data.name);
+    }
+
+    return await this.productService.create(data);
   }
 
   /**
-   * 📦 Get all products (Public, supports pagination & search)
+   * 📦 Get all products (Public — pagination, filtering, and search)
    */
   @Get()
   async findAll(
-    @Query('page', ParseIntPipe) page = 1,
-    @Query('limit', ParseIntPipe) limit = 20,
+    @Query('page', new ParseIntPipe({ optional: true })) page = 1,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit = 20,
     @Query('search') search?: string,
     @Query('category') category?: string,
     @Query('brand') brand?: string,
   ) {
-    return this.productService.findAll({ page, limit, search, category, brand });
-    }
-
+    return await this.productService.findAll({ page, limit, search, category, brand });
+  }
 
   /**
    * 🔍 Get a single product by ID (Public)
    */
   @Get(':id')
   async findOne(@Param('id') id: string) {
-    return this.productService.findById(id);
+    return await this.productService.findOne(id);
   }
 
   /**
@@ -62,7 +67,12 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   async update(@Param('id') id: string, @Body() data: UpdateProductDto) {
-    return this.productService.update(id, data);
+    // Auto-slugify name updates
+    if (data.name && !data.slug) {
+      data.slug = slugify(data.name);
+    }
+
+    return await this.productService.update(id, data);
   }
 
   /**
@@ -72,6 +82,6 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   async delete(@Param('id') id: string) {
-    return this.productService.remove(id);
+    return await this.productService.delete(id);
   }
 }
