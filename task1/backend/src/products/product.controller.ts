@@ -16,7 +16,8 @@ import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
 import { Roles } from '../decorators/roles.decorator';
-import { slugify } from '../utils/slugify'
+import { slugify } from '../utils/slugify';
+import { OptionalJwtAuthGuard } from '../auth/optional-jwt.guard';
 
 @Controller('products')
 export class ProductController {
@@ -30,7 +31,7 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   async create(@Body() data: CreateProductDto) {
-    // Auto-generate slug if not provided
+    // 🌀 Auto-generate slug if not provided
     if (!data.slug && data.name) {
       data.slug = slugify(data.name);
     }
@@ -39,8 +40,10 @@ export class ProductController {
   }
 
   /**
-   * 📦 Get all products (Public — pagination, filtering, and search)
+   * 📦 Get all products (Public — supports pagination, filters, search)
+   * Allows optional token via OptionalJwtAuthGuard
    */
+  @UseGuards(OptionalJwtAuthGuard)
   @Get()
   async findAll(
     @Query('page', new ParseIntPipe({ optional: true })) page = 1,
@@ -49,12 +52,19 @@ export class ProductController {
     @Query('category') category?: string,
     @Query('brand') brand?: string,
   ) {
-    return await this.productService.findAll({ page, limit, search, category, brand });
+    return await this.productService.findAll({
+      page,
+      limit,
+      search,
+      category,
+      brand,
+    });
   }
 
   /**
    * 🔍 Get a single product by ID (Public)
    */
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':id')
   async findOne(@Param('id') id: string) {
     return await this.productService.findOne(id);
@@ -67,7 +77,7 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   async update(@Param('id') id: string, @Body() data: UpdateProductDto) {
-    // Auto-slugify name updates
+    // Auto-slugify if name is changed and slug not provided
     if (data.name && !data.slug) {
       data.slug = slugify(data.name);
     }
