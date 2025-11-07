@@ -32,7 +32,7 @@ const AdminLayout = () => {
   }, [location]);
 
   const navItems = [
-    { name: "Dashboard", icon: <BarChart3 size={18} />, path: "/admin" },
+    { name: "Dashboard", icon: <BarChart3 size={18} />, path: "/admin/dashboard" },
     { name: "Products", icon: <Package size={18} />, path: "/admin/products" },
     { name: "Orders", icon: <ShoppingBag size={18} />, path: "/admin/orders" },
     { name: "Users", icon: <Users size={18} />, path: "/admin/users" },

@@ -9,17 +9,27 @@ import { useAuth } from "../../context/AuthContext";
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, isLoggedIn } = useAuth();
 
-  // 🔒 Not logged in → redirect to login
+  // ⏳ Step 1: Wait for AuthContext initialization
+  // (user is undefined during localStorage hydration)
+  if (user === undefined) {
+    return (
+      <div className="flex justify-center items-center min-h-screen text-gray-500">
+        Checking authentication...
+      </div>
+    );
+  }
+
+  // 🔒 Step 2: Not logged in → redirect to login
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
   }
 
-  // 🚫 Logged in but lacks role permission
+  // 🚫 Step 3: Logged in but lacks role permission
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }
 
-  // ✅ User is authorized
+  // ✅ Step 4: Authorized → render child routes
   return children;
 };
 
