@@ -24,7 +24,7 @@ const AdminDashboard = () => {
         setLoading(true);
 
         const [productsRes, usersRes, ordersRes] = await Promise.all([
-          api.get("/products"),
+        //   api.get("/products"),
           api.get("/users"),
           api.get("/orders"),
         ]);
