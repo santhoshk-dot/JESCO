@@ -1,8 +1,7 @@
 import axios from "axios";
 
-// ✅ Use environment variable for API base URL
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "https://jesco.onrender.com";
+// ✅ Use environment variable for API base URL (fallback for local dev)
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://jesco.onrender.com";
 console.log("🔍 API Base URL:", API_BASE_URL);
 
 const api = axios.create({
@@ -13,8 +12,8 @@ const api = axios.create({
   },
 });
 
-// 🧱 Define public routes (GET doesn’t need token)
-const PUBLIC_ENDPOINTS = [
+// 🧱 Public GET routes — accessible without a token
+const PUBLIC_GET_ENDPOINTS = [
   "/products",
   "/categories",
   "/brands",
@@ -24,19 +23,27 @@ const PUBLIC_ENDPOINTS = [
   "/about",
 ];
 
-// ✅ Request Interceptor — attach JWT only for protected APIs
+// ✅ Request Interceptor — attach JWT only for protected routes
 api.interceptors.request.use(
   (config) => {
     try {
       const token = localStorage.getItem("token");
-      const isPublic = PUBLIC_ENDPOINTS.some((url) =>
-        config.url.startsWith(url)
-      );
 
-      // ✅ Only attach token for protected routes
-      if (token && !isPublic) {
+      // Determine if route should skip token
+      const isPublicGet =
+        config.method?.toUpperCase() === "GET" &&
+        PUBLIC_GET_ENDPOINTS.some((url) => config.url.startsWith(url));
+
+      // Attach JWT only if it's a protected route
+      if (token && !isPublicGet) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+
+      // 🔍 Debug log (optional, can remove later)
+      console.log(
+        `➡️ [${config.method?.toUpperCase()}] ${config.url}`,
+        token ? "🔒 Token attached" : "🌐 Public route"
+      );
     } catch (err) {
       console.warn("⚠️ Failed to attach token:", err);
     }
@@ -46,7 +53,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ✅ Response Interceptor — handle errors globally
+// ✅ Response Interceptor — centralized error handling
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -70,12 +77,12 @@ api.interceptors.response.use(
       }
     }
 
-    // 🚫 Forbidden (403)
+    // 🚫 403 → Forbidden
     if (status === 403) {
       alert("You do not have permission to perform this action.");
     }
 
-    // 🔥 Server Errors
+    // 🔥 5xx → Server Error
     if (status >= 500) {
       console.error("🔥 Server Error:", error.response);
     }
