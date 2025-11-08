@@ -1,4 +1,12 @@
-import { Controller, Get, UseGuards, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  UseGuards,
+  Param,
+  Delete,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../decorators/roles.decorator';
@@ -10,21 +18,41 @@ import { RolesGuard } from '../guards/roles.guard';
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
-  //Dashboard stats
-  @Get('dashboard')
-  async getDashboardStats() {
-    return await this.adminService.getDashboardStats();
+  /**
+   * 📊 Get Dashboard Analytics (Total Users, Orders, Products)
+   * For Admin Dashboard Home
+   */
+  @Get('analytics')
+  async getAnalytics() {
+    const stats = await this.adminService.getDashboardStats();
+    return {
+      message: '✅ Analytics fetched successfully',
+      ...stats,
+    };
   }
 
-  // Get all users
+  /**
+   * 👥 Get All Users (Admin)
+   */
   @Get('users')
   async getAllUsers() {
-    return await this.adminService.getAllUsers();
+    const users = await this.adminService.getAllUsers();
+    return {
+      total: users.length,
+      users,
+    };
   }
 
-  // Delete user
+  /**
+   * ❌ Delete User by ID (Admin)
+   */
   @Delete('users/:id')
+  @HttpCode(HttpStatus.OK)
   async deleteUser(@Param('id') id: string) {
-    return await this.adminService.deleteUser(id);
+    const result = await this.adminService.deleteUser(id);
+    return {
+      message: '🗑️ User deleted successfully',
+      result,
+    };
   }
 }

@@ -10,6 +10,7 @@ import {
   HttpCode,
   UseGuards,
   ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
@@ -31,26 +32,25 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   async create(@Body() data: CreateProductDto) {
-    // 🌀 Auto-generate slug if not provided
     if (!data.slug && data.name) {
       data.slug = slugify(data.name);
     }
-
     return await this.productService.create(data);
   }
 
   /**
-   * 📦 Get all products (Public — supports pagination, filters, search)
-   * Allows optional token via OptionalJwtAuthGuard
+   * 📦 Get all products (Public)
+   * Supports pagination, filters, search, and sorting
    */
   @UseGuards(OptionalJwtAuthGuard)
   @Get()
   async findAll(
-    @Query('page', new ParseIntPipe({ optional: true })) page = 1,
-    @Query('limit', new ParseIntPipe({ optional: true })) limit = 20,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('search') search?: string,
     @Query('category') category?: string,
     @Query('brand') brand?: string,
+    @Query('sort') sort?: string, // 🆕 added sort param
   ) {
     return await this.productService.findAll({
       page,
@@ -58,6 +58,7 @@ export class ProductController {
       search,
       category,
       brand,
+      sort,
     });
   }
 
@@ -77,11 +78,9 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   async update(@Param('id') id: string, @Body() data: UpdateProductDto) {
-    // Auto-slugify if name is changed and slug not provided
     if (data.name && !data.slug) {
       data.slug = slugify(data.name);
     }
-
     return await this.productService.update(id, data);
   }
 

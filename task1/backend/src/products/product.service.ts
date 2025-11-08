@@ -16,6 +16,7 @@ interface ProductQueryOptions {
   search?: string;
   category?: string;
   brand?: string;
+  sort?: string;
 }
 
 @Injectable()
@@ -30,18 +31,16 @@ export class ProductService {
    */
   async create(data: CreateProductDto) {
     try {
-      // Auto-generate id + slug if missing
+      // Generate IDs and Slugs
       const id = data.id || uuidv4();
       const slug = data.slug || slugify(data.name);
 
-      // Check for duplicate name or SKU
+      // Prevent duplicates
       const existing = await this.productModel.findOne({
         $or: [{ name: data.name }, { sku: data.sku }],
       });
       if (existing) {
-        throw new BadRequestException(
-          `Product with same name or SKU already exists.`,
-        );
+        throw new BadRequestException('Product with same name or SKU already exists.');
       }
 
       const product = new this.productModel({
@@ -63,13 +62,21 @@ export class ProductService {
   }
 
   /**
-   * 📦 Get all products (public - supports pagination, filters, search)
+   * 📦 Get all products (public - supports pagination, filters, search & sorting)
    */
   async findAll(options: ProductQueryOptions) {
-    const { page = 1, limit = 20, search, category, brand } = options;
+    const {
+      page = 1,
+      limit = 20,
+      search,
+      category,
+      brand,
+      sort = 'newest',
+    } = options;
+
     const filters: Record<string, any> = {};
 
-    // 🔹 Search filter (case-insensitive)
+    // 🔍 Flexible search (case-insensitive)
     if (search) {
       filters.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -83,13 +90,36 @@ export class ProductService {
 
     const skip = (page - 1) * limit;
 
-    // Fetch paginated results
+    // 🔽 Determine sorting dynamically
+    let sortOption: Record<string, 1 | -1> = { createdAt: -1 }; // default newest
+    switch (sort) {
+      case 'priceLowHigh':
+        sortOption = { price: 1 };
+        break;
+      case 'priceHighLow':
+        sortOption = { price: -1 };
+        break;
+      case 'stockLowHigh':
+        sortOption = { stock: 1 };
+        break;
+      case 'stockHighLow':
+        sortOption = { stock: -1 };
+        break;
+      case 'oldest':
+        sortOption = { createdAt: 1 };
+        break;
+      default:
+        sortOption = { createdAt: -1 }; // newest
+        break;
+    }
+
+    // 🔹 Query the database
     const [data, total] = await Promise.all([
       this.productModel
         .find(filters)
         .skip(skip)
         .limit(limit)
-        .sort({ createdAt: -1 })
+        .sort(sortOption)
         .lean(),
       this.productModel.countDocuments(filters),
     ]);
@@ -100,6 +130,8 @@ export class ProductService {
       page,
       limit,
       totalPages: Math.ceil(total / limit),
+      sort,
+      filters: { category, brand, search },
     };
   }
 
@@ -119,7 +151,6 @@ export class ProductService {
     const product = await this.productModel.findById(id);
     if (!product) throw new NotFoundException('Product not found');
 
-    // Auto-update slug if name changes
     if (data.name && !data.slug) {
       data.slug = slugify(data.name);
     }

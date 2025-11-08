@@ -8,34 +8,52 @@ import { Product, ProductDocument } from '../products/Schemas/product.schema';
 @Injectable()
 export class AdminService {
   constructor(
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
-    @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
-    @InjectModel(Product.name) private productModel: Model<ProductDocument>,
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    @InjectModel(Order.name) private readonly orderModel: Model<OrderDocument>,
+    @InjectModel(Product.name) private readonly productModel: Model<ProductDocument>,
   ) {}
 
+  /**
+   * 📊 Dashboard Analytics
+   * Returns total counts and total revenue.
+   */
   async getDashboardStats() {
-    const [totalUsers, totalOrders, totalProducts, revenue] = await Promise.all([
+    const [totalUsers, totalOrders, totalProducts, revenueAgg] = await Promise.all([
       this.userModel.countDocuments(),
       this.orderModel.countDocuments(),
       this.productModel.countDocuments(),
-      this.orderModel.aggregate([{ $group: { _id: null, total: { $sum: '$total' } } }]),
+      this.orderModel.aggregate([
+        { $group: { _id: null, totalRevenue: { $sum: '$total' } } },
+      ]),
     ]);
+
+    const totalRevenue = revenueAgg?.[0]?.totalRevenue || 0;
 
     return {
       totalUsers,
       totalOrders,
       totalProducts,
-      totalRevenue: revenue[0]?.total || 0,
+      totalRevenue,
     };
   }
 
+  /**
+   * 👥 Get all users (without passwords)
+   */
   async getAllUsers() {
-    return this.userModel.find().select('-password');
+    return await this.userModel
+      .find()
+      .select('-password -__v')
+      .sort({ createdAt: -1 })
+      .lean();
   }
 
+  /**
+   * 🗑️ Delete a user by ID
+   */
   async deleteUser(id: string) {
-    const user = await this.userModel.findByIdAndDelete(id);
-    if (!user) throw new NotFoundException('User not found');
-    return { message: 'User deleted successfully' };
+    const deletedUser = await this.userModel.findByIdAndDelete(id);
+    if (!deletedUser) throw new NotFoundException('User not found');
+    return { message: '🗑️ User deleted successfully', id };
   }
 }
