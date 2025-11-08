@@ -1,7 +1,8 @@
 import axios from "axios";
 
 // ✅ Use environment variable for API base URL (fallback for local dev)
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://jesco.onrender.com";
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "https://jesco.onrender.com";
 console.log("🔍 API Base URL:", API_BASE_URL);
 
 const api = axios.create({
@@ -32,18 +33,21 @@ api.interceptors.request.use(
       // Determine if route should skip token
       const isPublicGet =
         config.method?.toUpperCase() === "GET" &&
-        PUBLIC_GET_ENDPOINTS.some((url) => config.url.startsWith(url));
+        PUBLIC_GET_ENDPOINTS.some((url) => config.url.includes(url)); // ✅ use .includes() instead of .startsWith()
 
       // Attach JWT only if it's a protected route
       if (token && !isPublicGet) {
         config.headers.Authorization = `Bearer ${token}`;
       }
 
-      // 🔍 Debug log (optional, can remove later)
-      console.log(
-        `➡️ [${config.method?.toUpperCase()}] ${config.url}`,
-        token ? "🔒 Token attached" : "🌐 Public route"
-      );
+      // 🔍 Debug log (you can remove later)
+      console.log("🔹 AXIOS DEBUG:", {
+        method: config.method?.toUpperCase(),
+        url: config.url,
+        hasToken: !!token,
+        isPublicGet,
+        headers: config.headers,
+      });
     } catch (err) {
       console.warn("⚠️ Failed to attach token:", err);
     }
