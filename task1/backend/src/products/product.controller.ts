@@ -32,9 +32,11 @@ export class ProductController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   async create(@Body() data: CreateProductDto) {
+    // ✅ Generate slug automatically if not provided
     if (!data.slug && data.name) {
       data.slug = slugify(data.name);
     }
+
     return await this.productService.create(data);
   }
 
@@ -50,7 +52,7 @@ export class ProductController {
     @Query('search') search?: string,
     @Query('category') category?: string,
     @Query('brand') brand?: string,
-    @Query('sort') sort?: string, // 🆕 added sort param
+    @Query('sort') sort?: string, // optional sorting key
   ) {
     return await this.productService.findAll({
       page,
@@ -72,20 +74,22 @@ export class ProductController {
   }
 
   /**
-   * ✏️ Update a product (Admin only)
+   * ✏️ Update product (Admin only)
    */
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   async update(@Param('id') id: string, @Body() data: UpdateProductDto) {
+    // ✅ Auto-slugify if name changes
     if (data.name && !data.slug) {
       data.slug = slugify(data.name);
     }
+
     return await this.productService.update(id, data);
   }
 
   /**
-   * 🗑️ Delete a product (Admin only)
+   * 🗑️ Delete product (Admin only)
    */
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)

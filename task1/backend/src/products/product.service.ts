@@ -30,34 +30,33 @@ export class ProductService {
    * 🆕 Create a new product (Admin only)
    */
   async create(data: CreateProductDto) {
+    const id = data.id || uuidv4();
+    const slug = data.slug || slugify(data.name);
+
+    // 🧠 Duplicate check (by name or SKU)
+    const existing = await this.productModel.findOne({
+      $or: [{ name: data.name }, { sku: data.sku }],
+    });
+    if (existing) {
+      throw new BadRequestException('A product with the same name or SKU already exists.');
+    }
+
+    const product = new this.productModel({
+      ...data,
+      id,
+      slug,
+      status: data.status || 'active',
+      inStock: data.inStock ?? true,
+      views: 0,
+      salesCount: 0,
+      defaultRating: data.defaultRating || 0,
+    });
+
     try {
-      // Generate IDs and Slugs
-      const id = data.id || uuidv4();
-      const slug = data.slug || slugify(data.name);
-
-      // Prevent duplicates
-      const existing = await this.productModel.findOne({
-        $or: [{ name: data.name }, { sku: data.sku }],
-      });
-      if (existing) {
-        throw new BadRequestException('Product with same name or SKU already exists.');
-      }
-
-      const product = new this.productModel({
-        ...data,
-        id,
-        slug,
-        status: data.status || 'active',
-        inStock: data.inStock ?? true,
-        views: 0,
-        salesCount: 0,
-        defaultRating: data.defaultRating || 0,
-      });
-
       return await product.save();
     } catch (err) {
-      console.error('❌ Error creating product:', err.message);
-      throw err;
+      console.error('❌ Error creating product:', err);
+      throw new BadRequestException('Failed to create product.');
     }
   }
 
@@ -76,7 +75,7 @@ export class ProductService {
 
     const filters: Record<string, any> = {};
 
-    // 🔍 Flexible search (case-insensitive)
+    // 🔍 Text-based search (case-insensitive)
     if (search) {
       filters.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -90,37 +89,17 @@ export class ProductService {
 
     const skip = (page - 1) * limit;
 
-    // 🔽 Determine sorting dynamically
-    let sortOption: Record<string, 1 | -1> = { createdAt: -1 }; // default newest
-    switch (sort) {
-      case 'priceLowHigh':
-        sortOption = { price: 1 };
-        break;
-      case 'priceHighLow':
-        sortOption = { price: -1 };
-        break;
-      case 'stockLowHigh':
-        sortOption = { stock: 1 };
-        break;
-      case 'stockHighLow':
-        sortOption = { stock: -1 };
-        break;
-      case 'oldest':
-        sortOption = { createdAt: 1 };
-        break;
-      default:
-        sortOption = { createdAt: -1 }; // newest
-        break;
-    }
+    // 🔽 Dynamic sorting options
+    const sortOption: Record<string, 1 | -1> = this.getSortOption(sort);
 
-    // 🔹 Query the database
+    // 🚀 Fetch paginated data efficiently
     const [data, total] = await Promise.all([
       this.productModel
         .find(filters)
         .skip(skip)
         .limit(limit)
         .sort(sortOption)
-        .lean(),
+        .lean(), // improves performance (no mongoose overhead)
       this.productModel.countDocuments(filters),
     ]);
 
@@ -136,7 +115,7 @@ export class ProductService {
   }
 
   /**
-   * 🔍 Get a single product by ID
+   * 🔍 Fetch one product by ID
    */
   async findOne(id: string) {
     const product = await this.productModel.findById(id).lean();
@@ -156,8 +135,13 @@ export class ProductService {
     }
 
     Object.assign(product, data);
-    await product.save();
-    return product;
+    try {
+      await product.save();
+      return product;
+    } catch (err) {
+      console.error('❌ Error updating product:', err);
+      throw new BadRequestException('Failed to update product.');
+    }
   }
 
   /**
@@ -167,5 +151,25 @@ export class ProductService {
     const product = await this.productModel.findByIdAndDelete(id);
     if (!product) throw new NotFoundException('Product not found');
     return { message: '✅ Product deleted successfully' };
+  }
+
+  /**
+   * ⚙️ Private helper: map sort query to Mongoose field
+   */
+  private getSortOption(sort: string): Record<string, 1 | -1> {
+    switch (sort) {
+      case 'priceLowHigh':
+        return { price: 1 };
+      case 'priceHighLow':
+        return { price: -1 };
+      case 'stockLowHigh':
+        return { stock: 1 };
+      case 'stockHighLow':
+        return { stock: -1 };
+      case 'oldest':
+        return { createdAt: 1 };
+      default:
+        return { createdAt: -1 }; // newest first
+    }
   }
 }

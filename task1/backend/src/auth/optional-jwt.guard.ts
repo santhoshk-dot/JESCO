@@ -1,3 +1,4 @@
+// src/auth/optional-jwt.guard.ts
 import { Injectable, ExecutionContext } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
@@ -5,20 +6,20 @@ import { Request } from 'express';
 @Injectable()
 export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
   canActivate(context: ExecutionContext) {
-    const req = context.switchToHttp().getRequest<Request>();
-    const authHeader = req.headers.authorization;
+    const request = context.switchToHttp().getRequest<Request>();
+    const authHeader = request.headers.authorization;
 
-    // ✅ If no Authorization header → skip JWT validation
-    if (!authHeader) {
-      return true;
+    // ✅ If there’s no Bearer token — skip JWT validation entirely
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return true; // Allow the request to continue
     }
 
-    // Otherwise, proceed with normal JWT guard logic
+    // Otherwise, run JWT strategy normally
     return super.canActivate(context);
   }
 
-  handleRequest(err, user, info, context: ExecutionContext) {
-    // ✅ Allow request to continue even if user is not found
+  handleRequest(err: any, user: any, info: any) {
+    // ✅ Don’t throw errors — just skip user
     if (err || !user) {
       return null;
     }

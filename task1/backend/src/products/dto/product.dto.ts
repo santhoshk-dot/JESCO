@@ -1,4 +1,15 @@
-import { IsString, IsNumber, IsOptional, IsBoolean, IsEnum, IsArray, IsObject, IsUUID, Min } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsBoolean,
+  IsEnum,
+  IsArray,
+  IsObject,
+  IsUUID,
+  Min,
+  Max,
+} from 'class-validator';
 
 export class CreateProductDto {
   @IsOptional()
@@ -12,8 +23,9 @@ export class CreateProductDto {
   @IsString()
   name: string;
 
+  @IsOptional() // ✅ Let backend auto-generate slug
   @IsString()
-  slug: string;
+  slug?: string;
 
   @IsString()
   category: string;
@@ -31,6 +43,7 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   stock?: number;
 
   @IsOptional()
@@ -60,6 +73,7 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   piecesPerBox?: number;
 
   @IsOptional()
@@ -77,14 +91,18 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   views?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   salesCount?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
+  @Max(5)
   defaultRating?: number;
 }
 
@@ -107,14 +125,17 @@ export class UpdateProductDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   price?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   originalPrice?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   stock?: number;
 
   @IsOptional()
@@ -144,6 +165,7 @@ export class UpdateProductDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   piecesPerBox?: number;
 
   @IsOptional()
@@ -161,13 +183,17 @@ export class UpdateProductDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   views?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
   salesCount?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(0)
+  @Max(5)
   defaultRating?: number;
 }

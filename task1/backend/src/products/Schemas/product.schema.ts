@@ -6,80 +6,98 @@ export type ProductDocument = Product & Document;
 
 @Schema({ timestamps: true })
 export class Product {
+  /** Internal Mongo ID (UUID) */
   @Prop({ type: String, default: () => uuidv4() })
   _id: string;
 
-  @Prop({ type: String, unique: true })
+  /** Public product ID — also UUID */
+  @Prop({ type: String, unique: true, default: () => uuidv4() })
   id: string;
 
+  /** Product name */
   @Prop({ required: true, trim: true })
   name: string;
 
-  @Prop({ required: true, unique: true, lowercase: true })
+  /** SEO-friendly slug */
+  @Prop({ required: true, unique: true, lowercase: true, trim: true })
   slug: string;
 
-  @Prop({ required: true })
+  /** Category name */
+  @Prop({ required: true, trim: true })
   category: string;
 
-  @Prop({ required: true })
+  /** Brand name */
+  @Prop({ required: true, trim: true })
   brand: string;
 
-  @Prop({ type: Number, required: true })
+  /** Selling price */
+  @Prop({ type: Number, required: true, min: 0 })
   price: number;
 
-  @Prop({ type: Number, required: true })
+  /** Original / MRP price */
+  @Prop({ type: Number, required: true, min: 0 })
   originalPrice: number;
 
-  @Prop({ type: Number, default: 0 })
+  /** Current stock count */
+  @Prop({ type: Number, default: 0, min: 0 })
   stock: number;
 
+  /** Product status */
   @Prop({ type: String, enum: ['active', 'inactive'], default: 'active' })
   status: 'active' | 'inactive';
 
+  /** Thumbnail image */
   @Prop({ type: String, default: '' })
   image: string;
 
-  @Prop({ type: String, unique: true })
+  /** SKU (must be unique for inventory tracking) */
+  @Prop({ type: String, unique: true, sparse: true }) // ✅ sparse avoids index conflicts on empty SKUs
   sku: string;
 
+  /** Description text (HTML or plain) */
   @Prop({ type: String, default: '' })
   description: string;
 
+  /** Gallery or extra media URLs */
   @Prop({ type: [String], default: [] })
   medias: string[];
 
+  /** Package type label (e.g. "PER 100 PKT") */
   @Prop({ type: String, default: 'PER 100 PKT' })
   packageType: string;
 
-  @Prop({ type: Number, default: 0 })
+  /** Pieces per box or pack */
+  @Prop({ type: Number, default: 0, min: 0 })
   piecesPerBox: number;
 
+  /** Whether the product is in stock */
   @Prop({ type: Boolean, default: true })
   inStock: boolean;
 
-  @Prop({
-    type: Object,
-    default: {},
-  })
+  /** Optional dimensional data */
+  @Prop({ type: Object, default: {} })
   dimensions: Record<string, any>;
 
+  /** Search tags */
   @Prop({ type: [String], default: [] })
   tags: string[];
 
-  @Prop({ type: Number, default: 0 })
+  /** Analytics fields */
+  @Prop({ type: Number, default: 0, min: 0 })
   views: number;
 
-  @Prop({ type: Number, default: 0 })
+  @Prop({ type: Number, default: 0, min: 0 })
   salesCount: number;
 
-  @Prop({ type: Number, default: 0 })
+  @Prop({ type: Number, default: 0, min: 0, max: 5 })
   defaultRating: number;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
 
-// ✅ Optional: Add indexes for performance
+// ✅ Indexes for search & filtering performance
 ProductSchema.index({ name: 'text', brand: 'text', category: 'text' });
-ProductSchema.index({ slug: 1 });
+ProductSchema.index({ slug: 1 }, { unique: true });
 ProductSchema.index({ category: 1 });
 ProductSchema.index({ brand: 1 });
+ProductSchema.index({ price: 1 });
