@@ -1,13 +1,27 @@
-import { ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { Injectable, ExecutionContext } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { Request } from 'express';
 
 @Injectable()
-export class OptionalJwtAuthGuard extends JwtAuthGuard {
-  handleRequest(err, user, info, context: ExecutionContext) {
-    // ✅ If there's no user (token missing or invalid) — don't throw
-    if (err || !user) {
-      return null; // means "not authenticated" but still allowed
+export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
+  canActivate(context: ExecutionContext) {
+    const req = context.switchToHttp().getRequest<Request>();
+    const authHeader = req.headers.authorization;
+
+    // ✅ If no Authorization header → skip JWT validation
+    if (!authHeader) {
+      return true;
     }
-    return user; // valid user → continue
+
+    // Otherwise, proceed with normal JWT guard logic
+    return super.canActivate(context);
+  }
+
+  handleRequest(err, user, info, context: ExecutionContext) {
+    // ✅ Allow request to continue even if user is not found
+    if (err || !user) {
+      return null;
+    }
+    return user;
   }
 }

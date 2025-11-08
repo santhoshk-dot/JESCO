@@ -23,18 +23,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * payload.sub = user._id (from generateJwt)
    */
   async validate(payload: JwtPayload) {
-    const user = await this.authService.validateUser(payload);
-
-    if (!user) {
-      throw new UnauthorizedException('Invalid or expired token');
-    }
-
-    // Attach user object to request (used later in guards/controllers)
-    return {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role, //critical for admin access
-    };
+  if (!payload || !payload.sub) {
+    // Allow guard to handle missing token instead of throwing
+    return null;
   }
+
+  const user = await this.authService.validateUser(payload);
+  if (!user) {
+    throw new UnauthorizedException('Invalid or expired token');
+  }
+
+  return {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+  };
+}
+
 }
