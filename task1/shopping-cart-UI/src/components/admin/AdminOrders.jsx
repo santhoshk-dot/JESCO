@@ -90,10 +90,10 @@ const AdminOrders = () => {
                 >
                   <td className="px-4 py-3 font-mono text-sm">{order._id}</td>
                   <td className="px-4 py-3">
-                    {order.user?.name || "Guest User"}
+                    {order.userId?.name || "Guest User"}
                   </td>
                   <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-100">
-                    ₹{order.totalAmount?.toFixed(2)}
+                    ₹{order.total?.toFixed(2)}
                   </td>
                   <td className="px-4 py-3">
                     <span
