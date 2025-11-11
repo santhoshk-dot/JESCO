@@ -18,12 +18,21 @@ export default function Checkout() {
   const [orderNotes, setOrderNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 🧠 Load addresses on mount
+  // Payment
+  const [showPayment, setShowPayment] = useState(false);
+  const [paymentProof, setPaymentProof] = useState(null);
+
+  const UPI_ID = "jesco@upi";
+  const BUSINESS_NAME = "Jesco Store";
+
+  // 🧠 Load addresses + restore selected
   useEffect(() => {
+    const saved = localStorage.getItem("selectedAddress");
+    if (saved) setSelectedAddress(JSON.parse(saved));
     if (user?._id) fetchAddresses();
   }, [user]);
 
- const fetchAddresses = async () => {
+  const fetchAddresses = async () => {
     try {
       const res = await api.get("/addresses");
       setAddresses(res.data);
@@ -31,94 +40,139 @@ export default function Checkout() {
       console.error("❌ Failed to fetch addresses:", err);
     }
   };
-  // 💳 Cart Calculations
+
+  // 💰 Totals
   const subtotal = items.reduce(
     (sum, i) => sum + Number(i.product.price || 0) * i.qty,
     0
   );
   const total = subtotal - discount;
 
+  // 📦 Coupon
   const handleApplyCoupon = () => {
     if (coupon.trim().toLowerCase() === "save10") {
       const newDiscount = subtotal * 0.1;
       setDiscount(newDiscount);
       alert("✅ 10% discount applied!");
+      setCoupon(""); // reset input
     } else {
       setDiscount(0);
       alert("❌ Invalid coupon code");
     }
   };
 
-  // 📦 Place Order
+  // 📤 Upload screenshot
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload a valid image!");
+      return;
+    }
+    setPaymentProof(file);
+  };
+
+  // 🧾 Place Order
   const handlePlaceOrder = async () => {
-    if (!token || !user?._id) {
-      alert("⚠️ Please log in before placing an order!");
-      navigate("/login");
-      return;
-    }
-
-    if (!selectedAddress) {
-      alert("Please select a delivery address!");
-      return;
-    }
-
-    if (items.length === 0) {
-      alert("Your cart is empty!");
-      return;
-    }
+    if (loading) return; // prevent double clicks
+    if (!token || !user?._id)
+      return alert("⚠️ Please log in before placing an order!");
+    if (!selectedAddress) return alert("Please select a delivery address!");
+    if (items.length === 0) return alert("Your cart is empty!");
+    if (!paymentProof) return alert("⚠️ Please upload your payment screenshot!");
 
     const deliveryDate = new Date();
     deliveryDate.setDate(deliveryDate.getDate() + Math.floor(Math.random() * 5) + 3);
 
     const orderData = {
-      userId: user._id,
-      deliveryAddress: selectedAddress,
+      deliveryAddress: {
+        label: selectedAddress?.label || "Home",
+        address: selectedAddress?.address || "",
+        city: selectedAddress?.city || "",
+        state: selectedAddress?.state || "",
+        zip: selectedAddress?.zip?.toString() || "000000",
+        country: selectedAddress?.country || "India",
+      },
       items: items.map((i) => ({
-        productId: i.product._id || i.product.id || i.product.sku,
-        name: i.product.name,
-        price: Number(i.product.price),
-        qty: Number(i.qty),
+        productId: String(i.product._id || i.product.id || i.product.sku || ""),
+        name: i.product.name || "Unnamed Product",
+        price: Number(i.product.price) || 0,
+        qty: Number(i.qty) || 1,
       })),
-      orderNotes: orderNotes?.trim() || null,
-      subtotal: Number(subtotal.toFixed(2)),
-      discount: Number(discount.toFixed(2)),
-      total: Number(total.toFixed(2)),
-      deliveryDate: deliveryDate.toISOString(),
+      orderNotes: orderNotes?.trim() || "",
+      subtotal: Number(subtotal.toFixed(2)) || 0,
+      discount: Number(discount.toFixed(2)) || 0,
+      total: Number(total.toFixed(2)) || 0,
+      deliveryDate: new Date(deliveryDate).toISOString(),
     };
 
     try {
       setLoading(true);
-      const res = await api.post("/orders", orderData, {
-        headers: { Authorization: `Bearer ${token}` },
+      const formData = new FormData();
+      formData.append("paymentProof", paymentProof);
+      formData.append("order", JSON.stringify(orderData));
+
+      const res = await api.post("/orders", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
       });
+
       if (res.status === 201 || res.status === 200) {
         alert("🎉 Order placed successfully!");
-        clearCart();
+        await clearCart();
         localStorage.removeItem("selectedAddress");
         navigate("/myorders");
       } else {
         alert("⚠️ Unexpected response from server.");
       }
     } catch (err) {
-      console.error("❌ Order creation failed:", err.response?.data || err.message);
-      alert("❌ Failed to place order. Please try again.");
+      const errors =
+        err.response?.data?.errors ||
+        err.response?.data?.message ||
+        err.message;
+      console.error("❌ Order creation failed:", errors);
+
+      if (Array.isArray(errors)) {
+        alert(
+          "❌ " +
+            errors
+              .map(
+                (e) =>
+                  `${e.property}: ${Object.values(e.constraints || {}).join(", ")}`
+              )
+              .join("\n")
+        );
+      } else if (typeof errors === "string") {
+        alert("❌ " + errors);
+      } else {
+        alert("❌ Something went wrong. Please check your details.");
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  // 🧾 Generate QR dynamically
+  const qrData = `upi://pay?pa=${encodeURIComponent(
+    UPI_ID
+  )}&pn=${encodeURIComponent(BUSINESS_NAME)}&am=${total.toFixed(2)}&cu=INR`;
+  const qrImage = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(
+    qrData
+  )}`;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-10 gap-8">
       <h1 className="text-2xl font-bold mb-6">Checkout</h1>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* LEFT SECTION */}
+        {/* LEFT: Address + Notes */}
         <div className="flex-1 space-y-8">
-          {/* 🏠 Delivery Address Section */}
+          {/* 🏠 Address Section */}
           <section className="bg-white p-6 rounded-2xl shadow-sm">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold">📍 Delivery Address</h2>
-              {/* ✅ Link to external Add Address page */}
               <Link
                 to="/address/add"
                 className="bg-red-400 text-white px-3 py-1 rounded-lg hover:shadow-md"
@@ -127,7 +181,6 @@ export default function Checkout() {
               </Link>
             </div>
 
-            {/* Selected Address */}
             {selectedAddress && (
               <div className="border border-gray-300 rounded-lg p-3 bg-gray-50 mb-3">
                 <p className="font-semibold">{selectedAddress.label}</p>
@@ -139,7 +192,6 @@ export default function Checkout() {
               </div>
             )}
 
-            {/* Dropdown Toggle */}
             <button
               onClick={() => setShowDropdown((prev) => !prev)}
               className="w-full flex justify-between items-center border border-gray-300 rounded-lg px-4 py-3 bg-gray-100 hover:bg-gray-200 transition"
@@ -156,81 +208,37 @@ export default function Checkout() {
               </span>
             </button>
 
-            {/* Dropdown List */}
-            <div
-              className={`mt-3 border border-gray-200 rounded-lg shadow-inner bg-white overflow-hidden ${
-                showDropdown ? "animate-slideDown" : "animate-slideUp"
-              }`}
-              style={{ maxHeight: showDropdown ? "300px" : "0px" }}
-            >
-              {showDropdown && (
-                <div className="max-h-60 overflow-y-auto">
-                  {addresses.length > 0 ? (
-                    addresses.map((addr, idx) => (
-                      <div
-                        key={idx}
-                        onClick={() => {
-                          setSelectedAddress(addr);
-                          localStorage.setItem(
-                            "selectedAddress",
-                            JSON.stringify(addr)
-                          );
-                          setShowDropdown(false);
-                        }}
-                        className={`p-3 border-b cursor-pointer transition-all duration-200 ${
-                          selectedAddress?._id === addr._id
-                            ? "bg-red-50 border-l-4 border-red-400"
-                            : "hover:bg-gray-50"
-                        }`}
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold">{addr.label}</p>
-                            <p className="text-sm text-gray-600 leading-snug">
-                              {addr.address}, {addr.city}, {addr.state},{" "}
-                              {addr.zip}, {addr.country}
-                            </p>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (window.confirm("Delete this address?")) {
-                                api
-                                  .delete(
-                                    `/users/${user._id}/addresses/${addr._id}`,
-                                    {
-                                      headers: {
-                                        Authorization: `Bearer ${token}`,
-                                      },
-                                    }
-                                  )
-                                  .then(() => {
-                                    setAddresses((prev) =>
-                                      prev.filter((a) => a._id !== addr._id)
-                                    );
-                                    if (selectedAddress?._id === addr._id)
-                                      setSelectedAddress(null);
-                                  })
-                                  .catch(() =>
-                                    alert("Failed to delete address.")
-                                  );
-                              }
-                            }}
-                            className="text-red-500 text-sm hover:underline"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="p-4 text-gray-500 text-sm">
-                      No saved addresses yet. Please add one.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
+            {showDropdown && (
+              <div className="mt-3 border border-gray-200 rounded-lg shadow-inner bg-white max-h-60 overflow-y-auto">
+                {addresses.length > 0 ? (
+                  addresses.map((addr, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setSelectedAddress(addr);
+                        localStorage.setItem("selectedAddress", JSON.stringify(addr));
+                        setShowDropdown(false);
+                      }}
+                      className={`p-3 border-b cursor-pointer transition-all duration-200 ${
+                        selectedAddress?._id === addr._id
+                          ? "bg-red-50 border-l-4 border-red-400"
+                          : "hover:bg-gray-50"
+                      }`}
+                    >
+                      <p className="font-semibold">{addr.label}</p>
+                      <p className="text-sm text-gray-600 leading-snug">
+                        {addr.address}, {addr.city}, {addr.state}, {addr.zip},{" "}
+                        {addr.country}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="p-4 text-gray-500 text-sm">
+                    No saved addresses yet. Please add one.
+                  </p>
+                )}
+              </div>
+            )}
           </section>
 
           {/* Coupon Section */}
@@ -255,9 +263,9 @@ export default function Checkout() {
             </div>
           </section>
 
-          {/* Notes Section */}
+          {/* Notes */}
           <section className="bg-white p-6 rounded-2xl shadow-sm">
-            <h2 className="text-lg font-semibold">📝 Order Notes (Optional)</h2>
+            <h2 className="text-lg font-semibold mb-3">📝 Order Notes (Optional)</h2>
             <textarea
               placeholder="Add any special instructions..."
               className="w-full mt-3 border rounded-lg px-3 py-2 h-24 resize-none"
@@ -267,7 +275,7 @@ export default function Checkout() {
           </section>
         </div>
 
-        {/* RIGHT SECTION (Summary) */}
+        {/* RIGHT: Summary + Payment */}
         <div className="w-full lg:w-96 bg-white p-6 rounded-2xl shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
 
@@ -276,15 +284,9 @@ export default function Checkout() {
           ) : (
             <>
               {items.map((item) => (
-                <div
-                  key={item.product._id || item.product.id || item.product.sku}
-                  className="flex items-center gap-4 mb-4"
-                >
+                <div key={item.product._id} className="flex items-center gap-4 mb-4">
                   <img
-                    src={
-                      item.product.images?.split("~")[0]?.trim() ||
-                      "/placeholder.png"
-                    }
+                    src={item.product.images?.split("~")[0]?.trim() || "/placeholder.png"}
                     alt={item.product.name}
                     className="w-14 h-14 object-cover rounded-lg border"
                   />
@@ -314,13 +316,63 @@ export default function Checkout() {
                 <span>₹{total.toFixed(2)}</span>
               </div>
 
-              <button
-                onClick={handlePlaceOrder}
-                disabled={loading}
-                className="w-full mt-6 bg-green-600 text-white py-3 rounded-xl font-medium hover:shadow-md disabled:opacity-60"
-              >
-                {loading ? "Placing Order..." : "Place Order"}
-              </button>
+              {/* 💳 Payment Section */}
+              <div className="mt-6 border-t pt-4">
+                {!showPayment ? (
+                  <button
+                    onClick={() => setShowPayment(true)}
+                    className="w-full bg-green-600 text-white py-2 rounded-lg"
+                  >
+                    Pay Now
+                  </button>
+                ) : (
+                  <div className="text-center space-y-3">
+                    <p className="text-gray-600 text-sm">
+                      Scan the QR to pay ₹{total.toFixed(2)} to <b>{UPI_ID}</b>
+                    </p>
+                    <img
+                      src={qrImage}
+                      alt="UPI Payment QR"
+                      className="mx-auto w-48 h-48 border rounded-lg"
+                    />
+                    <p className="text-sm text-gray-500">{BUSINESS_NAME}</p>
+
+                    <div className="mt-4">
+                      <label className="block font-medium mb-2 text-left">
+                        Upload Payment Screenshot:
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        className="border p-2 rounded-md w-full"
+                      />
+                      {paymentProof && (
+                        <>
+                          <p className="text-green-600 text-sm mt-2">
+                            ✅ {paymentProof.name} uploaded successfully
+                          </p>
+                          <img
+                            src={URL.createObjectURL(paymentProof)}
+                            alt="Proof Preview"
+                            className="w-32 h-32 object-cover rounded-lg border mt-2 mx-auto"
+                          />
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {showPayment && paymentProof && (
+                  <button
+                    onClick={handlePlaceOrder}
+                    disabled={loading}
+                    className="w-full mt-5 bg-green-600 text-white py-3 rounded-xl font-medium hover:shadow-md disabled:opacity-60"
+                  >
+                    {loading ? "Placing Order..." : "Place Order"}
+                  </button>
+                )}
+              </div>
             </>
           )}
         </div>

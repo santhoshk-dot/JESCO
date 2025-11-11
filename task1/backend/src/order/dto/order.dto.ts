@@ -7,6 +7,7 @@ import {
   ValidateNested,
   IsObject,
   IsDateString,
+  IsIn,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -56,20 +57,24 @@ class OrderItemDto {
 }
 
 export class CreateOrderDto {
+  // 🏠 Delivery details
   @IsObject()
   @ValidateNested()
   @Type(() => DeliveryAddressDto)
   deliveryAddress: DeliveryAddressDto;
 
+  // 🛍️ Ordered items
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => OrderItemDto)
   items: OrderItemDto[];
 
+  // 📝 Optional notes
   @IsOptional()
   @IsString()
   orderNotes?: string;
 
+  // 💰 Financial summary
   @IsNumber()
   subtotal: number;
 
@@ -80,10 +85,25 @@ export class CreateOrderDto {
   @IsNumber()
   total: number;
 
+  // 🚚 Delivery
   @IsDateString()
   deliveryDate: string;
 
-  //Optional userId, added internally by backend (not by client)
+  // 💳 Payment Details
+  @IsOptional()
+  @IsString()
+  paymentMethod?: 'UPI' | 'COD' | 'Card' | 'NetBanking';
+
+  @IsOptional()
+  @IsIn(['Pending', 'Pending Verification', 'Verified', 'Failed'])
+  paymentStatus?: string;
+
+  // 📷 Proof of payment (optional path or URL)
+  @IsOptional()
+  @IsString()
+  paymentProof?: string | null;
+
+  //Internal — backend fills this
   @IsOptional()
   @IsString()
   userId?: string;

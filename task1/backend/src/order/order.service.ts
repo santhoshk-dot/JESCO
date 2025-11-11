@@ -13,7 +13,7 @@ export class OrdersService {
   private readonly twilioClient: twilio.Twilio;
 
   constructor(
-    @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
+    @InjectModel(Order.name) private readonly orderModel: Model<OrderDocument>,
     private readonly usersService: UsersService,
   ) {
     this.twilioClient = twilio(
@@ -26,24 +26,29 @@ export class OrdersService {
    * ✅ Create new order + send SMS confirmation
    */
   async create(data: CreateOrderDto & { userId: string }) {
-    const newOrder = new this.orderModel({
+    // Ensure `userId` is an ObjectId in DB
+    const order = new this.orderModel({
       ...data,
-      discount: data.discount || 0,
       userId: new Types.ObjectId(data.userId),
+      discount: data.discount || 0,
+      paymentStatus: data.paymentStatus || 'Pending Verification',
+      paymentMethod: data.paymentMethod || 'UPI',
+      status: 'Processing',
     });
 
-    const savedOrder = await newOrder.save();
+    const savedOrder = await order.save();
 
+    // ✅ Fetch user details safely (convert ObjectId → string)
     try {
-      // Fetch user details
-      const user = await this.usersService.findById(data.userId);
+      const user = await this.usersService.findById(String(data.userId));
+
       if (!user) {
-        this.logger.warn(`User ${data.userId} not found.`);
+        this.logger.warn(`⚠️ User ${data.userId} not found.`);
         return savedOrder;
       }
 
       if (!user.mobile) {
-        this.logger.warn(`User ${user._id} has no mobile number.`);
+        this.logger.warn(`⚠️ User ${user._id} has no mobile number.`);
         return savedOrder;
       }
 
@@ -51,60 +56,24 @@ export class OrdersService {
         ? user.mobile
         : `+91${user.mobile}`;
 
-      const orderId = (savedOrder._id as unknown as Types.ObjectId).toString();
+      const orderId = (savedOrder._id as Types.ObjectId).toString();
       await this.sendSmsNotification(user.name, userPhone, orderId);
     } catch (err: any) {
-      this.logger.error(`❌ Failed to send order SMS: ${err.message}`);
+      this.logger.error(`❌ Failed to send SMS: ${err.message}`);
     }
 
     return savedOrder;
   }
 
-  async findAll() {
-  return this.orderModel.find().populate('userId').sort({ createdAt: -1 });
-}
-
-
   /**
-   * ✅ SMS notification sender (Twilio → fallback to Fast2SMS)
+   * ✅ Find all orders (Admin use)
    */
-  private async sendSmsNotification(name: string, phone: string, orderId: string) {
-    const message = `✅ Hi ${name}, your order #${orderId} has been placed successfully! Thank you for shopping with us.`;
-
-    try {
-      // Try Twilio
-      await this.twilioClient.messages.create({
-        body: message,
-        from: process.env.TWILIO_PHONE_NUMBER!,
-        to: phone,
-      });
-      this.logger.log(`📩 SMS sent to ${phone} via Twilio`);
-    } catch (err: any) {
-      this.logger.warn(`⚠️ Twilio failed: ${err.message}, using Fast2SMS fallback...`);
-
-      try {
-        await axios.post(
-          'https://www.fast2sms.com/dev/bulkV2',
-          {
-            route: 'v3',
-            sender_id: 'TXTIND',
-            message,
-            language: 'english',
-            flash: 0,
-            numbers: phone.replace('+91', ''),
-          },
-          { headers: { authorization: process.env.FAST2SMS_API_KEY! } },
-        );
-
-        this.logger.log(`📩 SMS sent to ${phone} via Fast2SMS`);
-      } catch (fallbackErr: any) {
-        this.logger.error(`🚫 SMS sending failed completely: ${fallbackErr.message}`);
-      }
-    }
+  async findAll() {
+    return this.orderModel.find().populate('userId').sort({ createdAt: -1 });
   }
 
   /**
-   * ✅ Get all orders for a user
+   * ✅ Get all orders for a specific user
    */
   async findAllByUser(userId: string) {
     const orders = await this.orderModel
@@ -119,6 +88,7 @@ export class OrdersService {
         discount?: number;
         total: number;
         status: string;
+        paymentStatus: string;
         deliveryDate: Date;
         createdAt: Date;
         items: { name: string; qty: number; price: number; productId: string }[];
@@ -132,6 +102,7 @@ export class OrdersService {
       discount: order.discount || 0,
       total: order.total,
       status: order.status || 'Processing',
+      paymentStatus: order.paymentStatus || 'Pending Verification',
       deliveryDate: order.deliveryDate,
       createdAt: order.createdAt,
       user: order.userId,
@@ -146,16 +117,16 @@ export class OrdersService {
   }
 
   /**
-   * ✅ Find order by ID (for invoice)
+   * ✅ Find single order (for invoice)
    */
   async findById(id: string) {
-    const order = await this.orderModel
+    return this.orderModel
       .findById(id)
       .populate('userId', 'name email mobile')
       .lean<{
         tax: number;
-        paymentMethod: any;
-        paymentStatus: any;
+        paymentMethod: string;
+        paymentStatus: string;
         _id: Types.ObjectId;
         userId: { name: string; email: string; mobile: string };
         createdAt: Date;
@@ -165,7 +136,41 @@ export class OrdersService {
         total: number;
         items: { name: string; qty: number; price: number }[];
       }>();
+  }
 
-    return order;
+  /**
+   * ✅ Send SMS notification (Twilio → Fast2SMS fallback)
+   */
+  private async sendSmsNotification(name: string, phone: string, orderId: string) {
+    const message = `✅ Hi ${name}, your order #${orderId} has been placed successfully! Thank you for shopping with us.`;
+
+    try {
+      await this.twilioClient.messages.create({
+        body: message,
+        from: process.env.TWILIO_PHONE_NUMBER!,
+        to: phone,
+      });
+      this.logger.log(`📩 SMS sent to ${phone} via Twilio`);
+    } catch (err: any) {
+      this.logger.warn(`⚠️ Twilio failed: ${err.message}. Trying Fast2SMS...`);
+
+      try {
+        await axios.post(
+          'https://www.fast2sms.com/dev/bulkV2',
+          {
+            route: 'v3',
+            sender_id: 'TXTIND',
+            message,
+            language: 'english',
+            flash: 0,
+            numbers: phone.replace('+91', ''),
+          },
+          { headers: { authorization: process.env.FAST2SMS_API_KEY! } },
+        );
+        this.logger.log(`📩 SMS sent to ${phone} via Fast2SMS`);
+      } catch (fallbackErr: any) {
+        this.logger.error(`🚫 Both Twilio & Fast2SMS failed: ${fallbackErr.message}`);
+      }
+    }
   }
 }
