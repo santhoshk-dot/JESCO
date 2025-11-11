@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useCart } from "../context/CartContext";
 import { FaTag } from "react-icons/fa";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import api from "../api/axios";
 import { useAuth } from "../context/AuthContext";
 
@@ -10,26 +10,34 @@ export default function Checkout() {
   const { user, token } = useAuth();
   const navigate = useNavigate();
 
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState(null);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [coupon, setCoupon] = useState("");
   const [discount, setDiscount] = useState(0);
-  const [selectedAddress, setSelectedAddress] = useState(null);
   const [orderNotes, setOrderNotes] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ✅ Load selected address on mount
+  // 🧠 Load addresses on mount
   useEffect(() => {
-    const addr = localStorage.getItem("selectedAddress");
-    if (addr) setSelectedAddress(JSON.parse(addr));
-  }, []);
+    if (user?._id) fetchAddresses();
+  }, [user]);
 
-  // ✅ Cart calculations
+ const fetchAddresses = async () => {
+    try {
+      const res = await api.get("/addresses");
+      setAddresses(res.data);
+    } catch (err) {
+      console.error("❌ Failed to fetch addresses:", err);
+    }
+  };
+  // 💳 Cart Calculations
   const subtotal = items.reduce(
     (sum, i) => sum + Number(i.product.price || 0) * i.qty,
     0
   );
   const total = subtotal - discount;
 
-  // ✅ Coupon handler
   const handleApplyCoupon = () => {
     if (coupon.trim().toLowerCase() === "save10") {
       const newDiscount = subtotal * 0.1;
@@ -41,41 +49,30 @@ export default function Checkout() {
     }
   };
 
-  const deliveryDate = new Date();
-  deliveryDate.setDate(deliveryDate.getDate() + Math.floor(Math.random() * 5) + 3);
- 
-
-  //Place order
+  // 📦 Place Order
   const handlePlaceOrder = async () => {
-    // Check login
     if (!token || !user?._id) {
       alert("⚠️ Please log in before placing an order!");
       navigate("/login");
       return;
     }
 
-    // Check address
     if (!selectedAddress) {
       alert("Please select a delivery address!");
       return;
     }
 
-    // Check cart
     if (items.length === 0) {
       alert("Your cart is empty!");
       return;
     }
 
+    const deliveryDate = new Date();
+    deliveryDate.setDate(deliveryDate.getDate() + Math.floor(Math.random() * 5) + 3);
+
     const orderData = {
       userId: user._id,
-      deliveryAddress: {
-        label: selectedAddress.label || "Home",
-        address: selectedAddress.address,
-        city: selectedAddress.city,
-        state: selectedAddress.state,
-        zip: selectedAddress.zip,
-        country: selectedAddress.country,
-      },
+      deliveryAddress: selectedAddress,
       items: items.map((i) => ({
         productId: i.product._id || i.product.id || i.product.sku,
         name: i.product.name,
@@ -86,19 +83,14 @@ export default function Checkout() {
       subtotal: Number(subtotal.toFixed(2)),
       discount: Number(discount.toFixed(2)),
       total: Number(total.toFixed(2)),
-      // paymentMethod: "Offline", // 👈 optional
       deliveryDate: deliveryDate.toISOString(),
     };
 
     try {
       setLoading(true);
-
       const res = await api.post("/orders", orderData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-
       if (res.status === 201 || res.status === 200) {
         alert("🎉 Order placed successfully!");
         clearCart();
@@ -109,17 +101,10 @@ export default function Checkout() {
       }
     } catch (err) {
       console.error("❌ Order creation failed:", err.response?.data || err.message);
-      if (err.response?.status === 401) {
-        alert("Session expired. Please log in again.");
-        navigate("/login");
-      } else {
-        alert("❌ Failed to place order. Please try again.");
-      }
+      alert("❌ Failed to place order. Please try again.");
     } finally {
       setLoading(false);
     }
-
-
   };
 
   return (
@@ -129,12 +114,11 @@ export default function Checkout() {
       <div className="flex flex-col lg:flex-row gap-8">
         {/* LEFT SECTION */}
         <div className="flex-1 space-y-8">
-          {/* Address Section */}
+          {/* 🏠 Delivery Address Section */}
           <section className="bg-white p-6 rounded-2xl shadow-sm">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-semibold flex items-center gap-2">
-                📍 Delivery Address
-              </h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">📍 Delivery Address</h2>
+              {/* ✅ Link to external Add Address page */}
               <Link
                 to="/address/add"
                 className="bg-red-400 text-white px-3 py-1 rounded-lg hover:shadow-md"
@@ -143,33 +127,110 @@ export default function Checkout() {
               </Link>
             </div>
 
-            {selectedAddress ? (
-              <div className="mt-4 p-3 border rounded-lg shadow-sm bg-gray-50">
-                <p className="font-medium text-gray-800">{selectedAddress.label}</p>
-                <p className="text-gray-600">
+            {/* Selected Address */}
+            {selectedAddress && (
+              <div className="border border-gray-300 rounded-lg p-3 bg-gray-50 mb-3">
+                <p className="font-semibold">{selectedAddress.label}</p>
+                <p className="text-sm text-gray-600">
                   {selectedAddress.address}, {selectedAddress.city},{" "}
                   {selectedAddress.state}, {selectedAddress.zip},{" "}
                   {selectedAddress.country}
                 </p>
-                <Link
-                  to="/address"
-                  className="mt-2 inline-block text-white bg-red-400 px-3 py-1 rounded-lg hover:shadow-md"
-                >
-                  Change Address
-                </Link>
-              </div>
-            ) : (
-              <div className="mt-2">
-                <p className="text-gray-500">
-                  No addresses found. Please add a delivery address.
-                </p>
-                <Link to="/address">
-                  <button className="mt-4 bg-black text-white px-5 py-2 rounded-lg hover:shadow-md">
-                    Add Address
-                  </button>
-                </Link>
               </div>
             )}
+
+            {/* Dropdown Toggle */}
+            <button
+              onClick={() => setShowDropdown((prev) => !prev)}
+              className="w-full flex justify-between items-center border border-gray-300 rounded-lg px-4 py-3 bg-gray-100 hover:bg-gray-200 transition"
+            >
+              <span className="font-medium text-gray-800">
+                {showDropdown ? "Hide Saved Addresses" : "Select from Saved Addresses"}
+              </span>
+              <span
+                className={`transition-transform duration-200 ${
+                  showDropdown ? "rotate-180" : ""
+                }`}
+              >
+                ⌄
+              </span>
+            </button>
+
+            {/* Dropdown List */}
+            <div
+              className={`mt-3 border border-gray-200 rounded-lg shadow-inner bg-white overflow-hidden ${
+                showDropdown ? "animate-slideDown" : "animate-slideUp"
+              }`}
+              style={{ maxHeight: showDropdown ? "300px" : "0px" }}
+            >
+              {showDropdown && (
+                <div className="max-h-60 overflow-y-auto">
+                  {addresses.length > 0 ? (
+                    addresses.map((addr, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          setSelectedAddress(addr);
+                          localStorage.setItem(
+                            "selectedAddress",
+                            JSON.stringify(addr)
+                          );
+                          setShowDropdown(false);
+                        }}
+                        className={`p-3 border-b cursor-pointer transition-all duration-200 ${
+                          selectedAddress?._id === addr._id
+                            ? "bg-red-50 border-l-4 border-red-400"
+                            : "hover:bg-gray-50"
+                        }`}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-semibold">{addr.label}</p>
+                            <p className="text-sm text-gray-600 leading-snug">
+                              {addr.address}, {addr.city}, {addr.state},{" "}
+                              {addr.zip}, {addr.country}
+                            </p>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm("Delete this address?")) {
+                                api
+                                  .delete(
+                                    `/users/${user._id}/addresses/${addr._id}`,
+                                    {
+                                      headers: {
+                                        Authorization: `Bearer ${token}`,
+                                      },
+                                    }
+                                  )
+                                  .then(() => {
+                                    setAddresses((prev) =>
+                                      prev.filter((a) => a._id !== addr._id)
+                                    );
+                                    if (selectedAddress?._id === addr._id)
+                                      setSelectedAddress(null);
+                                  })
+                                  .catch(() =>
+                                    alert("Failed to delete address.")
+                                  );
+                              }
+                            }}
+                            className="text-red-500 text-sm hover:underline"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="p-4 text-gray-500 text-sm">
+                      No saved addresses yet. Please add one.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </section>
 
           {/* Coupon Section */}
@@ -177,10 +238,6 @@ export default function Checkout() {
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <FaTag /> Apply Coupon
             </h2>
-            <div className="bg-yellow-50 text-yellow-800 p-3 rounded-lg mt-3 text-sm">
-              💡 Payment will be collected offline after order confirmation.
-            </div>
-
             <div className="flex gap-3 mt-4">
               <input
                 type="text"
@@ -210,7 +267,7 @@ export default function Checkout() {
           </section>
         </div>
 
-        {/* RIGHT SECTION */}
+        {/* RIGHT SECTION (Summary) */}
         <div className="w-full lg:w-96 bg-white p-6 rounded-2xl shadow-sm">
           <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
 
