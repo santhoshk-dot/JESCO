@@ -23,13 +23,12 @@ export class OrdersService {
   }
 
   /**
-   * ✅ Create new order + send SMS confirmation
+   * ✅ Create a new order
    */
   async create(data: CreateOrderDto & { userId: string }) {
-    // Ensure `userId` is an ObjectId in DB
     const order = new this.orderModel({
       ...data,
-      userId: new Types.ObjectId(data.userId),
+      userId: new Types.ObjectId(data.userId), // 🔥 ensure ObjectId
       discount: data.discount || 0,
       paymentStatus: data.paymentStatus || 'Pending Verification',
       paymentMethod: data.paymentMethod || 'UPI',
@@ -38,46 +37,38 @@ export class OrdersService {
 
     const savedOrder = await order.save();
 
-    // ✅ Fetch user details safely (convert ObjectId → string)
+    // Send SMS notification
     try {
       const user = await this.usersService.findById(String(data.userId));
+      if (!user) return savedOrder;
 
-      if (!user) {
-        this.logger.warn(`⚠️ User ${data.userId} not found.`);
-        return savedOrder;
-      }
+      const phone = user.mobile.startsWith('+') ? user.mobile : `+91${user.mobile}`;
+      const orderId = String(savedOrder._id);
 
-      if (!user.mobile) {
-        this.logger.warn(`⚠️ User ${user._id} has no mobile number.`);
-        return savedOrder;
-      }
 
-      const userPhone = user.mobile.startsWith('+')
-        ? user.mobile
-        : `+91${user.mobile}`;
-
-      const orderId = (savedOrder._id as Types.ObjectId).toString();
-      await this.sendSmsNotification(user.name, userPhone, orderId);
+      await this.sendSmsNotification(user.name, phone, orderId);
     } catch (err: any) {
-      this.logger.error(`❌ Failed to send SMS: ${err.message}`);
+      this.logger.error(`❌ SMS Error: ${err.message}`);
     }
 
     return savedOrder;
   }
 
   /**
-   * ✅ Find all orders (Admin use)
+   * 👑 Admin: Get all orders
    */
   async findAll() {
     return this.orderModel.find().populate('userId').sort({ createdAt: -1 });
   }
 
   /**
-   * ✅ Get all orders for a specific user
+   * 👤 Get all orders of a specific user
    */
   async findAllByUser(userId: string) {
+    const objectIdUser = new Types.ObjectId(userId); // 🔥 FIXED
+
     const orders = await this.orderModel
-      .find({ userId })
+      .find({ userId: objectIdUser }) // 🔥 FIXED QUERY
       .populate('userId', 'name email mobile')
       .sort({ createdAt: -1 })
       .lean<{
@@ -117,7 +108,7 @@ export class OrdersService {
   }
 
   /**
-   * ✅ Find single order (for invoice)
+   * 📄 Fetch single order for invoice
    */
   async findById(id: string) {
     return this.orderModel
@@ -139,10 +130,10 @@ export class OrdersService {
   }
 
   /**
-   * ✅ Send SMS notification (Twilio → Fast2SMS fallback)
+   * 📩 SMS sender (Twilio → Fast2SMS fallback)
    */
   private async sendSmsNotification(name: string, phone: string, orderId: string) {
-    const message = `✅ Hi ${name}, your order #${orderId} has been placed successfully! Thank you for shopping with us.`;
+    const message = `✅ Hi ${name}, your order #${orderId} has been placed successfully!`;
 
     try {
       await this.twilioClient.messages.create({
@@ -150,9 +141,10 @@ export class OrdersService {
         from: process.env.TWILIO_PHONE_NUMBER!,
         to: phone,
       });
+
       this.logger.log(`📩 SMS sent to ${phone} via Twilio`);
     } catch (err: any) {
-      this.logger.warn(`⚠️ Twilio failed: ${err.message}. Trying Fast2SMS...`);
+      this.logger.warn(`⚠️ Twilio failed: ${err.message}, trying Fast2SMS...`);
 
       try {
         await axios.post(
@@ -167,9 +159,10 @@ export class OrdersService {
           },
           { headers: { authorization: process.env.FAST2SMS_API_KEY! } },
         );
+
         this.logger.log(`📩 SMS sent to ${phone} via Fast2SMS`);
       } catch (fallbackErr: any) {
-        this.logger.error(`🚫 Both Twilio & Fast2SMS failed: ${fallbackErr.message}`);
+        this.logger.error(`🚫 Both SMS methods failed: ${fallbackErr.message}`);
       }
     }
   }

@@ -154,7 +154,7 @@ export default function Checkout() {
     }
   };
 
-  // 🧾 Generate QR dynamically
+  // Generate QR dynamically
   const qrData = `upi://pay?pa=${encodeURIComponent(
     UPI_ID
   )}&pn=${encodeURIComponent(BUSINESS_NAME)}&am=${total.toFixed(2)}&cu=INR`;
@@ -316,7 +316,7 @@ export default function Checkout() {
                 <span>₹{total.toFixed(2)}</span>
               </div>
 
-              {/* 💳 Payment Section */}
+              {/* Payment Section */}
               <div className="mt-6 border-t pt-4">
                 {!showPayment ? (
                   <button

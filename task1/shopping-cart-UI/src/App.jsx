@@ -28,7 +28,6 @@ import MyOrders from "./components/pages/MyOrders";
 import QuickBuy from "./components/QuickBuy";
 import Checkout from "./components/Checkout";
 import AddAddress from "./components/AddAddress";
-import AddressList from "./components/AddressList";
 import BrandPage from "./components/Brands";
 
 // Admin pages
@@ -71,7 +70,6 @@ const App = () => {
             <Route path="reset-password/:token" element={<ResetPassword />} />
             <Route path="quickbuy" element={<QuickBuy />} />
             <Route path="checkout" element={<Checkout />} />
-            <Route path="address" element={<AddressList />} />
             <Route path="address/add" element={<AddAddress />} />
             <Route path="myorders" element={<MyOrders />} />
             <Route path="profile" element={<Profile />} />

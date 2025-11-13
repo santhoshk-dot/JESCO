@@ -88,7 +88,7 @@ export function CartProvider({ children }) {
     });
   };
 
-  // ✅ Derived totals
+  // Derived totals
   const cartSummary = useMemo(() => {
     const totalItems = items.reduce((sum, i) => sum + i.qty, 0);
     const totalAmount = items.reduce(
@@ -98,7 +98,7 @@ export function CartProvider({ children }) {
     return { totalItems, totalAmount };
   }, [items]);
 
-  // 🧠 Sync with backend if logged in
+  //Sync with backend if logged in
   const syncCartToBackend = async (updatedCart = items) => {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
@@ -114,7 +114,7 @@ export function CartProvider({ children }) {
     }
   };
 
-  // 🧠 Load cart from backend if logged in
+  // Load cart from backend if logged in
   const loadCartFromBackend = async () => {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
@@ -132,7 +132,7 @@ export function CartProvider({ children }) {
     }
   };
 
-  // 🚀 Sync on login
+  // Sync on login
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user"));
     if (user?._id) loadCartFromBackend();

@@ -7,22 +7,21 @@ const FavouriteContext = createContext();
 
 export function FavouriteProvider({ children }) {
   const [favourites, setFavourites] = useState(() => {
-    // 🧩 Load from localStorage initially
+    // Load from localStorage initially
     const saved = localStorage.getItem("favourites");
     return saved ? JSON.parse(saved) : [];
   });
 
   const [loading, setLoading] = useState(false);
 
-  // 🩵 Helper: Save to localStorage
+  // Helper: Save to localStorage
   const persistToLocal = (updated) => {
     setFavourites(updated);
     localStorage.setItem("favourites", JSON.stringify(updated));
   };
 
-  /**
-   * ➕ Add to favourites
-   */
+   // Add to favourites
+   
   const addToFavourites = (product) => {
     const productId = product._id || product.sku || product.id;
     setFavourites((prev) => {
@@ -60,9 +59,7 @@ export function FavouriteProvider({ children }) {
     }
   };
 
-  /**
-   * 💾 Sync favourites to backend if logged in
-   */
+   // Sync favourites to backend if logged in
   const syncToBackend = async () => {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
@@ -76,9 +73,7 @@ export function FavouriteProvider({ children }) {
     }
   };
 
-  /**
-   * 🔁 Load favourites from backend on login
-   */
+  //Load favourites from backend on login
   const loadFromBackend = async () => {
     try {
       const user = JSON.parse(localStorage.getItem("user"));

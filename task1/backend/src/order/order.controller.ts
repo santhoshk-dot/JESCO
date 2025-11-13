@@ -31,26 +31,27 @@ import { Roles } from 'src/decorators/roles.decorator';
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
-  /**
-   * 💰 Create new UPI order (Authenticated users only)
-   * Supports optional payment screenshot upload
-   */
+  // --------------------------------------------------------
+  // 📌 CREATE ORDER (UPI + Payment proof)
+  // --------------------------------------------------------
   @UseGuards(JwtAuthGuard)
   @Post()
   @UseInterceptors(
     FileInterceptor('paymentProof', {
       storage: diskStorage({
         destination: './uploads/payment_proofs',
-        filename: (req, file, callback) => {
-          const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+        filename: (_, file, callback) => {
           const ext = path.extname(file.originalname);
-          callback(null, `proof-${uniqueSuffix}${ext}`);
+          callback(
+            null,
+            `proof-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`,
+          );
         },
       }),
-      fileFilter: (req, file, callback) => {
+      fileFilter: (_, file, callback) => {
         if (!file.mimetype.startsWith('image/')) {
           return callback(
-            new BadRequestException('Only image files are allowed as payment proof!'),
+            new BadRequestException('Only image files allowed!'),
             false,
           );
         }
@@ -64,81 +65,90 @@ export class OrdersController {
     @Req() req,
   ) {
     const userId = req.user?._id || req.user?.id;
-    if (!userId) throw new BadRequestException('Missing user ID');
-    if (!orderString) throw new BadRequestException('Missing order data');
 
-    let parsedOrder: CreateOrderDto;
+    if (!userId) throw new BadRequestException('User ID missing');
+    if (!orderString) throw new BadRequestException('Order JSON missing');
+
+    // Parse JSON
+    let parsed: CreateOrderDto;
     try {
-      parsedOrder = JSON.parse(orderString);
-    } catch (err) {
-      if (paymentProof && fs.existsSync(paymentProof.path)) fs.unlinkSync(paymentProof.path);
-      throw new BadRequestException('Invalid JSON format in order data');
+      parsed = JSON.parse(orderString);
+    } catch (_) {
+      if (paymentProof) fs.unlinkSync(paymentProof.path);
+      throw new BadRequestException('Invalid order JSON format');
     }
 
-    // ✅ Transform and validate DTO
-    const dtoInstance = plainToInstance(CreateOrderDto, parsedOrder);
-    const errors = await validate(dtoInstance);
-    if (errors.length > 0) {
-      if (paymentProof && fs.existsSync(paymentProof.path)) fs.unlinkSync(paymentProof.path);
+    // Validate DTO manually (multipart/form-data bypasses pipes)
+    const dto = plainToInstance(CreateOrderDto, parsed);
+    const errors = await validate(dto);
 
-      const formatted = errors.map((e) => ({
-        property: e.property,
-        constraints: e.constraints,
-      }));
+    if (errors.length > 0) {
+      if (paymentProof) fs.unlinkSync(paymentProof.path);
+
       throw new BadRequestException({
         message: 'Validation failed',
-        errors: formatted,
+        details: errors.map((e) => ({
+          property: e.property,
+          constraints: e.constraints,
+        })),
       });
     }
 
-    // ✅ Build final payload for DB
+    // Payment proof URL (if uploaded)
     const proofUrl = paymentProof
       ? `/uploads/payment_proofs/${paymentProof.filename}`
       : null;
 
-    const orderData = {
-      ...parsedOrder,
+    // FINAL DATA sent to service
+    const orderData: CreateOrderDto & {
+      userId: string;
+      paymentMethod: 'UPI';
+      paymentStatus: 'Pending Verification';
+      paymentProof: string | null;
+    } = {
+      ...parsed,
       userId: String(userId),
-      paymentMethod: 'UPI' as const,
-      paymentStatus: 'Pending Verification' as const,
+      paymentMethod: 'UPI',                 // strict literal type
+      paymentStatus: 'Pending Verification',
       paymentProof: proofUrl,
     };
 
-    return await this.ordersService.create(orderData);
+    return this.ordersService.create(orderData);
   }
 
-  /**
-   * 👑 Admin: Get all orders
-   */
+  // --------------------------------------------------------
+  // 📌 ADMIN: Get all orders
+  // --------------------------------------------------------
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
   @Get()
   async findAll() {
-    return await this.ordersService.findAll();
+    return this.ordersService.findAll();
   }
 
-  /**
-   * 👤 Admin: Get all orders by user ID
-   */
-  @UseGuards(JwtAuthGuard)
-  @Get('user/:userId')
-  async findAllByUser(@Param('userId') userId: string) {
-    return await this.ordersService.findAllByUser(userId);
-  }
-
-  /**
-   * 👤 Current user: Get their own orders
-   */
+  // --------------------------------------------------------
+  // 📌 USER: Get own orders
+  // --------------------------------------------------------
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async findMyOrders(@Req() req) {
     const userId = req.user?._id || req.user?.id;
-    return await this.ordersService.findAllByUser(String(userId));
+    return this.ordersService.findAllByUser(String(userId));
   }
 
-  /**
-   * 🧾 Download invoice as PDF
-   */
+  // --------------------------------------------------------
+  // 📌 ADMIN: Get orders by user ID
+  // --------------------------------------------------------
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @Get('user/:userId')
+  async findOrdersByUser(@Param('userId') userId: string) {
+    return this.ordersService.findAllByUser(userId);
+  }
+
+  // --------------------------------------------------------
+  // 📌 DOWNLOAD INVOICE PDF
+  // --------------------------------------------------------
   @Get(':id/invoice')
   async downloadInvoice(@Param('id') id: string, @Res() res: Response) {
     const order = await this.ordersService.findById(id);
@@ -146,67 +156,65 @@ export class OrdersController {
 
     const user = order.userId as any;
     const doc = new PDFDocument({ margin: 50 });
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
       `attachment; filename=invoice-${order._id}.pdf`,
     );
+
     doc.pipe(res);
 
-    // Header
-    doc.fontSize(20).text('INVOICE', { align: 'center' }).moveDown(1);
+    // Invoice Header
+    doc.fontSize(20).text('INVOICE', { align: 'center' }).moveDown();
     doc
       .fontSize(12)
       .text(`Invoice ID: ${order._id}`)
       .text(`Date: ${moment(order.createdAt).format('DD MMM YYYY, h:mm A')}`)
-      .moveDown(1);
+      .moveDown();
 
-    // Customer
-    doc.fontSize(14).text('Customer Details', { underline: true }).moveDown(0.5);
+    // Customer details
+    doc.fontSize(14).text('Customer Details', { underline: true }).moveDown();
     doc
       .fontSize(12)
-      .text(`Name: ${user?.name || 'N/A'}`)
-      .text(`Email: ${user?.email || 'N/A'}`)
-      .text(`Mobile: ${user?.mobile || 'N/A'}`)
-      .moveDown(1);
+      .text(`Name: ${user?.name}`)
+      .text(`Email: ${user?.email}`)
+      .text(`Mobile: ${user?.mobile}`)
+      .moveDown();
 
-    // Address
+    // Delivery address
     const addr = order.deliveryAddress;
-    doc.fontSize(14).text('Delivery Address', { underline: true }).moveDown(0.5);
+    doc.fontSize(14).text('Delivery Address', { underline: true }).moveDown();
     doc
       .fontSize(12)
-      .text(`${addr.label}`)
-      .text(`${addr.address}`)
-      .text(`${addr.city}, ${addr.state}, ${addr.zip}`)
-      .text(`${addr.country}`)
-      .moveDown(1);
+      .text(addr.label)
+      .text(addr.address)
+      .text(`${addr.city}, ${addr.state} - ${addr.zip}`)
+      .moveDown();
 
-    // Items
-    doc.fontSize(14).text('Order Items', { underline: true }).moveDown(0.5);
+    // Order items
+    doc.fontSize(14).text('Order Items', { underline: true }).moveDown();
     order.items.forEach((item, i) => {
-      doc
-        .fontSize(12)
-        .text(
-          `${i + 1}. ${item.name} (x${item.qty}) - ₹${item.price} each = ₹${
-            item.price * item.qty
-          }`,
-        );
+      doc.fontSize(12).text(
+        `${i + 1}. ${item.name} × ${item.qty} = ₹${item.qty * item.price}`,
+      );
     });
-    doc.moveDown(1);
 
-    // Totals
-    doc.fontSize(14).text('Payment Summary', { underline: true }).moveDown(0.5);
+    doc.moveDown();
+
+    // Payment Summary
+    doc.fontSize(14).text('Payment Summary', { underline: true }).moveDown();
     doc
       .fontSize(12)
       .text(`Subtotal: ₹${order.subtotal}`)
       .text(`Discount: ₹${order.discount}`)
-      .text(`Tax: ₹${order.tax || 0}`)
       .text(`Total: ₹${order.total}`)
       .text(`Payment Method: ${order.paymentMethod}`)
       .text(`Payment Status: ${order.paymentStatus}`)
       .moveDown(2);
 
-    doc.fontSize(10).text('Thank you for shopping with us!', { align: 'center' });
+    doc.text('Thank you for shopping with us!', { align: 'center' });
+
     doc.end();
   }
 }
